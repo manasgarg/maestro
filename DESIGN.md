@@ -33,10 +33,10 @@ These principles govern every Implementer and Reviewer action. They were set by 
 
 ## Lifecycle
 
-1. **Direction.** Human (or AI agent) files an issue with the `maestro:direction` label. AI-originated direction is additionally labeled `maestro:ai-proposed` and waits for one human 👍 before proceeding.
+1. **Direction.** Human (or AI agent) files an issue with the `maestro:direction` label. AI-originated direction is additionally labeled `maestro:ai-proposed` and waits for an explicit positive comment from the human before proceeding.
 2. **Proposal.** Implementer posts a proposal as a comment on the issue, within ~5 minutes of the trigger.
 3. **Questions (optional).** If the proposal includes clarifying questions, the issue is labeled `maestro:awaiting-human`. The label is removed when the human responds.
-4. **Implementation.** Once the proposal is approved (a 👍 reaction or positive comment by the issue author), the Implementer opens one PR per atomic change. PR descriptions use the *Observable change / Evidence* format.
+4. **Implementation.** Once the proposal is approved (a positive comment by the issue author such as "go" / "approved" / "lgtm"), the Implementer opens one PR per atomic change. PR descriptions use the *Observable change / Evidence* format. A 👍 reaction alone does not trigger the workflow — GitHub Actions does not fire on reactions.
 5. **Review.** Within ~5 minutes of a Maestro PR opening or updating, the Reviewer posts review comments. Advisory only.
 6. **Merge.** The human merges (or asks for changes).
 7. **Receipt.** When the last atomic PR for a direction closes its parent issue, the Implementer posts a closing receipt: observable change + evidence. The issue is labeled `maestro:done`. A summary row is appended to `.maestro/tasks.jsonl`.
@@ -67,12 +67,21 @@ Failed attempts produce a receipt explaining what was tried, what was observed, 
 
 Maestro authenticates against Anthropic using your Claude Code subscription via an OAuth token — no separate API billing. One-time per repo:
 
-1. Generate the token by running `claude setup-token` in a terminal where Claude Code is installed.
-2. Set the token as a repository secret named `CLAUDE_CODE_OAUTH_TOKEN` (Settings → Secrets and variables → Actions).
-3. Run the **Maestro bootstrap** workflow from the Actions tab to create the labels.
+1. In Claude Code, run the slash command `/install-github-app`. It installs the Claude GitHub App on this repo and writes the `CLAUDE_CODE_OAUTH_TOKEN` repository secret. Admin access required.
+2. Run the **Maestro bootstrap** workflow from the Actions tab to create the labels.
 
 After setup, file an issue with the `maestro:direction` label and the loop runs.
 
 ## Public-repo safety
 
 Maestro is safe to run on public repositories. The workflows that consume your subscription credits are gated on `author_association` and only fire when the actor is `OWNER`, `MEMBER`, or `COLLABORATOR`. Issues, comments, and PRs from anyone else are visible but cannot trigger Maestro. GitHub additionally does not pass secrets to workflows triggered by fork pull requests.
+
+## Trust model
+
+The Implementer runs on top of `anthropics/claude-code-base-action`, which is a thin wrapper that defers trust enforcement to the caller. Maestro's enforcement is:
+
+- `author_association` gating at the workflow level (above) restricts who can trigger a run.
+- The GitHub token's `permissions:` block in each workflow limits blast radius if a run is prompt-injected (e.g. settings, secrets, and webhooks remain untouchable).
+- The Implementer agent runs with `--permission-mode bypassPermissions`, which is appropriate for a CI step where the trust boundary is the workflow gate rather than per-tool prompts. (Interactive permission prompts cannot be answered in CI.)
+
+For dogfooding-on-the-owner's-repo (the v0 use case) this is sufficient: the only commenter who can trigger Maestro is the owner, who is also the principal Maestro acts for. When Maestro is used by teams or accepts contributor-facing direction, migrate the Implementer (and Reviewer) to `anthropics/claude-code-action`, which adds an internal permission-check layer matched to the @claude / label / assignee trigger model. That migration is tracked as a follow-up direction.

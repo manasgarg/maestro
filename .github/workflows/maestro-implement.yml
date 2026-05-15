@@ -33,53 +33,49 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Build trigger context
-        id: ctx
+      # The action's documented inputs are prompt / prompt_file / claude_args /
+      # settings / claude_code_oauth_token / anthropic_api_key (plus cloud and
+      # cache options). Trigger context must be composed into the prompt file
+      # itself; there is no separate "append" input.
+      - name: Compose Implementer prompt
         env:
           EVENT_NAME: ${{ github.event_name }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           ISSUE_TITLE: ${{ github.event.issue.title }}
-          ISSUE_BODY: ${{ github.event.issue.body }}
-          COMMENT_BODY: ${{ github.event.comment.body }}
           COMMENT_AUTHOR: ${{ github.event.comment.user.login }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_TITLE: ${{ github.event.pull_request.title }}
-          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_MERGED: ${{ github.event.pull_request.merged }}
           REPO: ${{ github.repository }}
         run: |
+          PROMPT_PATH="${RUNNER_TEMP}/maestro_prompt.md"
           {
-            echo "context<<MAESTRO_EOF"
+            cat prompts/implementer.md
+            echo
+            echo "---"
+            echo
             echo "## Triggering event"
-            echo "- event: $EVENT_NAME"
-            echo "- repo: $REPO"
-            if [ -n "$ISSUE_NUMBER" ]; then
+            echo "- event: \`$EVENT_NAME\`"
+            echo "- repo: \`$REPO\`"
+            if [ -n "${ISSUE_NUMBER:-}" ]; then
               echo "- issue: #$ISSUE_NUMBER — $ISSUE_TITLE"
             fi
-            if [ -n "$COMMENT_AUTHOR" ]; then
-              echo "- comment by: $COMMENT_AUTHOR"
+            if [ -n "${COMMENT_AUTHOR:-}" ]; then
+              echo "- triggering comment by: $COMMENT_AUTHOR"
             fi
-            if [ -n "$PR_NUMBER" ]; then
-              echo "- pull request: #$PR_NUMBER — $PR_TITLE (merged)"
+            if [ -n "${PR_NUMBER:-}" ]; then
+              echo "- pull request: #$PR_NUMBER — $PR_TITLE (merged=$PR_MERGED)"
             fi
             echo
-            echo "Use the GitHub MCP tools to read the full issue, its comments, related PRs, and the proposal. Then act according to the Triggering events section of your instructions."
-            echo "MAESTRO_EOF"
-          } >> "$GITHUB_OUTPUT"
+            echo "Use the GitHub MCP tools to read the full issue body, its comments and reactions, related PRs, and any existing proposal. Then act according to the **Triggering events** section of your instructions above."
+          } > "$PROMPT_PATH"
+          echo "PROMPT_PATH=$PROMPT_PATH" >> "$GITHUB_ENV"
 
       - name: Run Implementer
         uses: anthropics/claude-code-base-action@beta
+        env:
+          GITHUB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          prompt_file: prompts/implementer.md
-          append_prompt: ${{ steps.ctx.outputs.context }}
-          allowed_tools: "Bash,Edit,Read,Write,Glob,Grep,mcp__github__*"
-          mcp_config: |
-            {
-              "mcpServers": {
-                "github": {
-                  "command": "docker",
-                  "args": ["run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN", "ghcr.io/github/github-mcp-server"],
-                  "env": { "GITHUB_PERSONAL_ACCESS_TOKEN": "${{ secrets.GITHUB_TOKEN }}" }
-                }
-              }
-            }
+          prompt_file: ${{ env.PROMPT_PATH }}
+          claude_args: "--permission-mode bypassPermissions"

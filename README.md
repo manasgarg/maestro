@@ -18,15 +18,14 @@ Maestro's Implementer will reply within ~5 minutes with a proposal: decompositio
 
 ## Approving a proposal
 
-React with 👍 on the proposal comment, or reply with "go" / "approved" / any positive acknowledgment. Maestro polls for the issue author's reaction.
+Reply on the issue with a positive comment — "go", "approved", "lgtm", "ship it", or similar. A 👍 reaction alone does not trigger Maestro (GitHub Actions does not fire workflow runs on reactions); the implementer needs a comment to read.
 
 ## Setup (one-time)
 
 Maestro uses your existing Claude Code subscription via an OAuth token — no separate API billing.
 
-1. In a terminal where Claude Code is installed, run `claude setup-token`. It prints a long-lived OAuth token.
-2. In this repo: Settings → Secrets and variables → Actions → New repository secret → name it `CLAUDE_CODE_OAUTH_TOKEN`, paste the token.
-3. Go to the Actions tab and run the **Maestro bootstrap** workflow once. This creates the labels Maestro uses.
+1. **Install the Claude GitHub App and provision the secret in one step.** Open Claude Code in any directory and run the slash command `/install-github-app`. It walks you through installing the GitHub App on this repo and writes the `CLAUDE_CODE_OAUTH_TOKEN` secret for you. You need admin access to the repo.
+2. **Run the Maestro bootstrap workflow.** Actions tab → "Maestro Bootstrap" → Run workflow. This creates the four labels Maestro uses.
 
 After that, file a `maestro:direction` issue and the loop runs.
 

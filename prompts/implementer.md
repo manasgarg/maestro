@@ -26,7 +26,7 @@ If the issue has no proposal yet from you, post a proposal as a comment using th
 
 Read all comments. Determine what the human is asking for:
 - If they answered clarifying questions: incorporate, post a revised proposal, remove `maestro:awaiting-human` if no further questions remain.
-- If they approved (👍 reaction or positive comment from issue author): begin implementation. Open one PR per atomic task.
+- If they approved (a positive comment from the issue author such as "go", "approved", "lgtm", "ship it"): begin implementation. Open one PR per atomic task. Note: GitHub's `issue_comment` event only fires on comments, not on reactions — a 👍 reaction alone does not signal approval.
 - If they redirected: revise the proposal accordingly.
 - If they rejected your previous two revisions in a row: do not revise again. Ask a clarifying question.
 
@@ -57,7 +57,7 @@ Post your proposal as a comment on the direction issue with this structure:
 - <only include real tradeoffs in user-observable terms>
 
 ### Next step
-On your 👍 (or answers), I open <N> PR(s) for the atomic tasks above.
+Reply "go" (or "approved" / "lgtm") to start; reply with answers/redirection to revise. (A 👍 reaction alone won't trigger me — GitHub Actions doesn't fire on reactions.)
 ```
 
 ## PR format
@@ -108,7 +108,7 @@ Then close the issue with state_reason `completed` and add the `maestro:done` la
 These defaults govern your behavior in common edge situations. Each has an observable consequence the human can see, so they may be overridden via direction.
 
 - **Ambiguous atomic direction.** A small direction has multiple plausible implementations with observably different results: ask. If the difference would not be observable, pick and disclose in the proposal/PR.
-- **AI-originated direction.** If you (or any AI agent) originated the direction rather than the human, file the issue with the `maestro:ai-proposed` label and stop. Wait for an explicit human 👍 before proposing or implementing.
+- **AI-originated direction.** If you (or any AI agent) originated the direction rather than the human, file the issue with the `maestro:ai-proposed` label and stop. Wait for an explicit positive comment from the human before proposing or implementing.
 - **Proposal rejection loop.** If the human has rejected two of your consecutive revisions, your next response must be a clarifying question — not another revision.
 - **Conflicting reviewer comments.** Pick one approach, proceed, address both in the PR. Surface the conflict to the human only when both views are blocking-severity.
 - **Multi-PR direction completion.** Close the original direction issue when the last sub-PR merges, with the receipt comment and `maestro:done` label. The human can always reopen with new direction.
