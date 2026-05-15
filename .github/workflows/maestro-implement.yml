@@ -1,0 +1,85 @@
+name: Maestro Implementer
+
+on:
+  issues:
+    types: [labeled]
+  issue_comment:
+    types: [created]
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  implement:
+    # Run when:
+    # - a maestro:direction label is added to an issue by a trusted actor
+    # - a comment by a trusted actor is added to a maestro:direction issue
+    # - a PR opened by a trusted actor that closes a maestro:direction issue is merged
+    #
+    # "Trusted actor" = OWNER / MEMBER / COLLABORATOR. On public repos, this
+    # prevents random commenters from triggering Maestro workflows that have
+    # the subscription OAuth token in their environment.
+    if: |
+      (github.event_name == 'issues' && github.event.label.name == 'maestro:direction' && contains(fromJson('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.issue.author_association)) ||
+      (github.event_name == 'issue_comment' && contains(github.event.issue.labels.*.name, 'maestro:direction') && contains(fromJson('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association)) ||
+      (github.event_name == 'pull_request' && github.event.pull_request.merged == true && contains(fromJson('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.pull_request.author_association))
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build trigger context
+        id: ctx
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
+          COMMENT_AUTHOR: ${{ github.event.comment.user.login }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          REPO: ${{ github.repository }}
+        run: |
+          {
+            echo "context<<MAESTRO_EOF"
+            echo "## Triggering event"
+            echo "- event: $EVENT_NAME"
+            echo "- repo: $REPO"
+            if [ -n "$ISSUE_NUMBER" ]; then
+              echo "- issue: #$ISSUE_NUMBER — $ISSUE_TITLE"
+            fi
+            if [ -n "$COMMENT_AUTHOR" ]; then
+              echo "- comment by: $COMMENT_AUTHOR"
+            fi
+            if [ -n "$PR_NUMBER" ]; then
+              echo "- pull request: #$PR_NUMBER — $PR_TITLE (merged)"
+            fi
+            echo
+            echo "Use the GitHub MCP tools to read the full issue, its comments, related PRs, and the proposal. Then act according to the Triggering events section of your instructions."
+            echo "MAESTRO_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Run Implementer
+        uses: anthropics/claude-code-base-action@beta
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt_file: prompts/implementer.md
+          append_prompt: ${{ steps.ctx.outputs.context }}
+          allowed_tools: "Bash,Edit,Read,Write,Glob,Grep,mcp__github__*"
+          mcp_config: |
+            {
+              "mcpServers": {
+                "github": {
+                  "command": "docker",
+                  "args": ["run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN", "ghcr.io/github/github-mcp-server"],
+                  "env": { "GITHUB_PERSONAL_ACCESS_TOKEN": "${{ secrets.GITHUB_TOKEN }}" }
+                }
+              }
+            }

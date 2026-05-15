@@ -1,0 +1,57 @@
+name: Maestro Bootstrap
+
+# One-time setup: creates the labels Maestro uses. Trigger from the Actions tab
+# after this PR merges. Safe to re-run; idempotent.
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  issues: write
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create Maestro labels
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const labels = [
+              {
+                name: 'maestro:direction',
+                color: '0E8A16',
+                description: 'A direction filed for Maestro to implement.',
+              },
+              {
+                name: 'maestro:awaiting-human',
+                color: 'FBCA04',
+                description: 'Maestro is blocked on a human answer.',
+              },
+              {
+                name: 'maestro:ai-proposed',
+                color: 'C5DEF5',
+                description: 'Direction proposed by an AI agent; needs human acknowledgment.',
+              },
+              {
+                name: 'maestro:done',
+                color: '5319E7',
+                description: 'Direction has been completed and receipted.',
+              },
+            ];
+            for (const label of labels) {
+              try {
+                await github.rest.issues.createLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  ...label,
+                });
+                core.info(`Created label: ${label.name}`);
+              } catch (e) {
+                if (e.status === 422) {
+                  core.info(`Label already exists: ${label.name}`);
+                } else {
+                  throw e;
+                }
+              }
+            }

@@ -1,0 +1,62 @@
+name: Maestro Reviewer
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  review:
+    # Only review PRs opened by a trusted actor (OWNER / MEMBER / COLLABORATOR).
+    # On public repos, this prevents fork PRs from triggering a workflow that
+    # consumes your subscription credits. (Note: GitHub already does not pass
+    # secrets to workflows triggered by fork PRs, but this gate makes the
+    # intent explicit and covers any future trigger expansion.)
+    if: |
+      contains(fromJson('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.pull_request.author_association)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build PR context
+        id: ctx
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          REPO: ${{ github.repository }}
+        run: |
+          {
+            echo "context<<MAESTRO_EOF"
+            echo "## PR to review"
+            echo "- repo: $REPO"
+            echo "- pull request: #$PR_NUMBER — $PR_TITLE"
+            echo "- author: $PR_AUTHOR"
+            echo
+            echo "Read the PR description (it links the direction issue via 'Closes #N'). Read the direction issue and its proposal to learn the acceptance criteria. Then audit the PR diff and evidence against those criteria."
+            echo "MAESTRO_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Run Reviewer
+        uses: anthropics/claude-code-base-action@beta
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt_file: prompts/reviewer.md
+          append_prompt: ${{ steps.ctx.outputs.context }}
+          allowed_tools: "Bash,Read,Glob,Grep,mcp__github__*"
+          mcp_config: |
+            {
+              "mcpServers": {
+                "github": {
+                  "command": "docker",
+                  "args": ["run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN", "ghcr.io/github/github-mcp-server"],
+                  "env": { "GITHUB_PERSONAL_ACCESS_TOKEN": "${{ secrets.GITHUB_TOKEN }}" }
+                }
+              }
+            }
