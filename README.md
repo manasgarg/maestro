@@ -27,6 +27,10 @@ React with 👍 on the proposal comment, or reply with "go" / "approved" / any p
 
 After that, file a `maestro:direction` issue and the loop runs.
 
+## Safe on public repos
+
+The workflows that consume your API key are gated on `author_association` and only run for the repo owner, members, or collaborators. Issues and comments from anyone else are visible but cannot trigger Maestro.
+
 ## History
 
 Past directions and their receipts are recorded in [`.maestro/tasks.jsonl`](./.maestro/tasks.jsonl). Heavyweight evidence (screenshots, recordings) lives under `.maestro/evidence/<issue-number>/`.

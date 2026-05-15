@@ -11,10 +11,13 @@ permissions:
 
 jobs:
   review:
-    # Only review PRs opened by Maestro (the implementer agent).
+    # Only review PRs opened by a trusted actor (OWNER / MEMBER / COLLABORATOR).
+    # On public repos, this prevents fork PRs from triggering a workflow that
+    # consumes ANTHROPIC_API_KEY credits. (Note: GitHub already does not pass
+    # secrets to workflows triggered by fork PRs, but this gate makes the
+    # intent explicit and covers any future trigger expansion.)
     if: |
-      contains(fromJson('["claude[bot]", "github-actions[bot]"]'), github.event.pull_request.user.login) ||
-      contains(github.event.pull_request.body, 'Closes #')
+      contains(fromJson('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.pull_request.author_association)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

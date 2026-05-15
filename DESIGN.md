@@ -71,3 +71,7 @@ One-time per repo:
 2. Run the **Maestro bootstrap** workflow from the Actions tab to create the labels.
 
 After setup, file an issue with the `maestro:direction` label and the loop runs.
+
+## Public-repo safety
+
+Maestro is safe to run on public repositories. The workflows that consume `ANTHROPIC_API_KEY` are gated on `author_association` and only fire when the actor is `OWNER`, `MEMBER`, or `COLLABORATOR`. Issues, comments, and PRs from anyone else are visible but cannot trigger Maestro. GitHub additionally does not pass secrets to workflows triggered by fork pull requests.

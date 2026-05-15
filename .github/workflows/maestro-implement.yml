@@ -16,13 +16,17 @@ permissions:
 jobs:
   implement:
     # Run when:
-    # - a maestro:direction label is added to an issue
-    # - a comment is added to a maestro:direction issue (and it's not from the bot itself)
-    # - a PR that closes a maestro:direction issue is merged
+    # - a maestro:direction label is added to an issue by a trusted actor
+    # - a comment by a trusted actor is added to a maestro:direction issue
+    # - a PR opened by a trusted actor that closes a maestro:direction issue is merged
+    #
+    # "Trusted actor" = OWNER / MEMBER / COLLABORATOR. On public repos, this
+    # prevents random commenters from triggering Maestro workflows that have
+    # ANTHROPIC_API_KEY in their environment.
     if: |
-      (github.event_name == 'issues' && github.event.label.name == 'maestro:direction') ||
-      (github.event_name == 'issue_comment' && contains(github.event.issue.labels.*.name, 'maestro:direction') && !contains(fromJson('["github-actions[bot]", "claude[bot]"]'), github.event.comment.user.login)) ||
-      (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
+      (github.event_name == 'issues' && github.event.label.name == 'maestro:direction' && contains(fromJson('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.issue.author_association)) ||
+      (github.event_name == 'issue_comment' && contains(github.event.issue.labels.*.name, 'maestro:direction') && contains(fromJson('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association)) ||
+      (github.event_name == 'pull_request' && github.event.pull_request.merged == true && contains(fromJson('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.pull_request.author_association))
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
