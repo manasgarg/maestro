@@ -22,7 +22,7 @@ These principles govern every Implementer and Reviewer action. They were set by 
 
 6. **GitHub is the source of truth.** Directions are issues. Proposals are comments. Implementations are PRs. Reviews are PR comments. Receipts are issue comments. History is in the repo.
 
-7. **Every change produces observable evidence.** Acceptance criteria and evidence share a vocabulary. The Implementer is not done until evidence demonstrates each criterion. Pure refactors must produce evidence of no regression. Failed attempts also produce a receipt explaining what was tried and what was observed.
+7. **Every change produces observable evidence — and the Implementer produces it.** Acceptance criteria and evidence share a vocabulary. The Implementer runs the verification themselves and records the run (script output, screenshots, captured commands, test logs, measurements) under `.maestro/evidence/<issue-number>/`. The PR's Evidence section cites the recorded artifact, not instructions the human must follow. A criterion the Implementer genuinely cannot verify must be flagged with the reason. Pure refactors produce evidence of no regression. Failed attempts also produce a receipt explaining what was tried and what was observed.
 
 ## Roles
 

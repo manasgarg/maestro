@@ -1,0 +1,63 @@
+=== Bootstrap PR #2 self-verification ===
+Run at: 2026-05-15T19:18:13Z
+Commit: 55ac4ce5439dd00429e87c6589a10c719ae620f8
+
+## File inventory
+[OK]    DESIGN.md (6691 bytes)
+[OK]    README.md (2041 bytes)
+[OK]    prompts/implementer.md (6838 bytes)
+[OK]    prompts/reviewer.md (2278 bytes)
+[OK]    .github/workflows/maestro-implement.yml (3569 bytes)
+[OK]    .github/workflows/maestro-review.yml (2328 bytes)
+[OK]    .github/workflows/maestro-bootstrap.yml (1730 bytes)
+[OK]    .github/pull_request_template.md (921 bytes)
+[OK]    .github/ISSUE_TEMPLATE/maestro-direction.md (399 bytes)
+[OK]    .maestro/README.md (592 bytes)
+[OK]    .maestro/tasks.jsonl (0 bytes)
+[OK]    .maestro/evidence/.gitkeep (0 bytes)
+
+## Workflow YAML lint (actionlint)
+[OK]    all workflows pass actionlint
+
+## Workflow YAML parses
+[OK]    .github/workflows/maestro-bootstrap.yml parses
+[OK]    .github/workflows/maestro-implement.yml parses
+[OK]    .github/workflows/maestro-review.yml parses
+
+## DESIGN.md contains all 7 principles
+[OK]    principle 1
+[OK]    principle 2
+[OK]    principle 3
+[OK]    principle 4
+[OK]    principle 5
+[OK]    principle 6
+[OK]    principle 7
+
+## Implementer prompt: required sections
+[OK]    section: Principles (binding
+[OK]    section: Triggering events
+[OK]    section: Proposal format
+[OK]    section: PR format
+[OK]    section: Receipt format
+[OK]    section: Edge cases
+
+## Reviewer prompt: required sections
+[OK]    section: Audit evidence against acceptance criteria
+[OK]    section: blocking
+[OK]    section: advisory
+
+## Public-repo safety: author_association gate present
+[OK]    .github/workflows/maestro-implement.yml gated
+[OK]    .github/workflows/maestro-review.yml gated
+
+## PR template includes Observable change + Evidence sections
+[OK]    section: Observable change
+[OK]    section: Evidence
+[OK]    section: Open AI feedback
+
+## Issue template applies maestro:direction label
+[OK]    label set
+
+=== SUMMARY ===
+Passed: 38
+Failed: 0

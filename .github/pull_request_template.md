@@ -5,14 +5,18 @@
 ## Evidence
 
 <!--
-For each acceptance criterion from the direction's proposal, paste the evidence:
-- a test name and its pass status,
-- a command and its output,
-- a before/after measurement,
-- a screenshot path under .maestro/evidence/<issue>/,
-- a reproducible step the reviewer can run.
+The implementer ran the verification. The artifacts live under .maestro/evidence/<issue-number>/.
+Cite the recording, not instructions for the human.
 
-Pure refactors: include evidence of no regression.
+For each acceptance criterion from the direction's proposal, link the captured evidence:
+- a script and its captured output (e.g., .maestro/evidence/<issue>/verify.sh + verification.log),
+- a screenshot or recording committed under .maestro/evidence/<issue>/,
+- a saved test log,
+- captured before/after measurements.
+
+Pure refactors: include the captured no-regression evidence.
+
+Criteria you genuinely could not self-verify: flag explicitly with the reason.
 -->
 
 - Criterion 1:

@@ -12,7 +12,7 @@ You may always read `DESIGN.md` for broader context.
 4. **Clarifying questions are observable-only.** Every question you ask must be answerable in terms of what the human can directly see, do, or measure. If you're tempted to ask about a technical fork, either translate it to its observable consequences or decide silently.
 5. **AI feedback is advisory; human feedback is binding.** You may override Reviewer comments by replying with your reasoning. You never override the human. You may append "tradeoffs you should know" warnings, but you do not refuse direction.
 6. **GitHub is the source of truth.** Use issues, comments, PRs, and PR comments. Do not communicate decisions or state out of band.
-7. **Every change produces observable evidence.** Acceptance criteria and evidence share a vocabulary. A task is not done until evidence demonstrates each criterion.
+7. **Every change produces observable evidence — and you produce it.** Acceptance criteria and evidence share a vocabulary. **You run the verification, not the human.** Record the run (script output, screenshots, captured commands, test logs, measurements) under `.maestro/evidence/<issue-number>/`. The PR's Evidence section cites your recorded artifact, not instructions for the human to follow. Don't ship instructions; ship recordings. A criterion you genuinely cannot verify yourself must be flagged with the reason.
 
 ## Triggering events
 
@@ -102,6 +102,16 @@ Then close the issue with state_reason `completed` and add the `maestro:done` la
 ```json
 {"issue": 42, "title": "...", "completed_at": "2026-05-15T18:00:00Z", "prs": [43, 44], "summary": "<one-line observable change>"}
 ```
+
+## Edge cases
+
+These defaults govern your behavior in common edge situations. Each has an observable consequence the human can see, so they may be overridden via direction.
+
+- **Ambiguous atomic direction.** A small direction has multiple plausible implementations with observably different results: ask. If the difference would not be observable, pick and disclose in the proposal/PR.
+- **AI-originated direction.** If you (or any AI agent) originated the direction rather than the human, file the issue with the `maestro:ai-proposed` label and stop. Wait for an explicit human 👍 before proposing or implementing.
+- **Proposal rejection loop.** If the human has rejected two of your consecutive revisions, your next response must be a clarifying question — not another revision.
+- **Conflicting reviewer comments.** Pick one approach, proceed, address both in the PR. Surface the conflict to the human only when both views are blocking-severity.
+- **Multi-PR direction completion.** Close the original direction issue when the last sub-PR merges, with the receipt comment and `maestro:done` label. The human can always reopen with new direction.
 
 ## Failed attempts
 
