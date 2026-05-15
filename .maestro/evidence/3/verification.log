@@ -1,0 +1,53 @@
+=== Issue #3 self-verification ===
+Run at: 2026-05-15T20:21:26Z
+Commit: 4279bb77bb66c9da067d897add45d3b776236247
+
+## Workflow YAML lint (actionlint)
+[OK]    all workflows pass actionlint
+
+## Bogus action inputs removed (finding #1 fix)
+[OK]    .github/workflows/maestro-implement.yml: 'append_prompt' removed
+[OK]    .github/workflows/maestro-implement.yml: 'allowed_tools' removed
+[OK]    .github/workflows/maestro-implement.yml: 'mcp_config' removed
+[OK]    .github/workflows/maestro-review.yml: 'append_prompt' removed
+[OK]    .github/workflows/maestro-review.yml: 'allowed_tools' removed
+[OK]    .github/workflows/maestro-review.yml: 'mcp_config' removed
+
+## Documented action inputs used (finding #1 fix)
+[OK]    .github/workflows/maestro-implement.yml uses prompt_file
+[OK]    .github/workflows/maestro-implement.yml uses claude_args
+[OK]    .github/workflows/maestro-review.yml uses prompt_file
+[OK]    .github/workflows/maestro-review.yml uses claude_args
+
+## Prompt is composed from role file + dynamic context (finding #1 fix)
+[OK]    .github/workflows/maestro-implement.yml assembles full prompt
+[OK]    .github/workflows/maestro-review.yml assembles full prompt
+
+## .mcp.json configures GitHub MCP server (per action trust-model guidance)
+[OK]    .mcp.json present and includes 'github' server
+
+## Reaction-based approval removed (finding #3 fix)
+[OK]    README.md does not claim reactions approve
+[OK]    DESIGN.md does not claim reactions approve
+[OK]    implementer.md specifies positive-comment approval
+
+## Setup instructions corrected (your setup-token failure)
+[OK]    README.md: 'setup-token' removed
+[OK]    README.md references /install-github-app
+[OK]    DESIGN.md: 'setup-token' removed
+[OK]    DESIGN.md references /install-github-app
+
+## Trust model section present in DESIGN (finding #2 documented override)
+[OK]    DESIGN.md has Trust model section
+
+## Public-repo safety gate still present (no regression)
+[OK]    .github/workflows/maestro-implement.yml gated
+[OK]    .github/workflows/maestro-review.yml gated
+
+## Auth still uses subscription OAuth token, not API key (no regression)
+[OK]    .github/workflows/maestro-implement.yml uses CLAUDE_CODE_OAUTH_TOKEN
+[OK]    .github/workflows/maestro-review.yml uses CLAUDE_CODE_OAUTH_TOKEN
+
+=== SUMMARY ===
+Passed: 26
+Failed: 0
