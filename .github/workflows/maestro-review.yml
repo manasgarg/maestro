@@ -1,0 +1,59 @@
+name: Maestro Reviewer
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  review:
+    # Only review PRs opened by Maestro (the implementer agent).
+    if: |
+      contains(fromJson('["claude[bot]", "github-actions[bot]"]'), github.event.pull_request.user.login) ||
+      contains(github.event.pull_request.body, 'Closes #')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build PR context
+        id: ctx
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          REPO: ${{ github.repository }}
+        run: |
+          {
+            echo "context<<MAESTRO_EOF"
+            echo "## PR to review"
+            echo "- repo: $REPO"
+            echo "- pull request: #$PR_NUMBER — $PR_TITLE"
+            echo "- author: $PR_AUTHOR"
+            echo
+            echo "Read the PR description (it links the direction issue via 'Closes #N'). Read the direction issue and its proposal to learn the acceptance criteria. Then audit the PR diff and evidence against those criteria."
+            echo "MAESTRO_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Run Reviewer
+        uses: anthropics/claude-code-base-action@beta
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt_file: prompts/reviewer.md
+          append_prompt: ${{ steps.ctx.outputs.context }}
+          allowed_tools: "Bash,Read,Glob,Grep,mcp__github__*"
+          mcp_config: |
+            {
+              "mcpServers": {
+                "github": {
+                  "command": "docker",
+                  "args": ["run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN", "ghcr.io/github/github-mcp-server"],
+                  "env": { "GITHUB_PERSONAL_ACCESS_TOKEN": "${{ secrets.GITHUB_TOKEN }}" }
+                }
+              }
+            }
