@@ -65,13 +65,14 @@ Failed attempts produce a receipt explaining what was tried, what was observed, 
 
 ## Setup
 
-One-time per repo:
+Maestro authenticates against Anthropic using your Claude Code subscription via an OAuth token — no separate API billing. One-time per repo:
 
-1. Set `ANTHROPIC_API_KEY` as a repository secret (Settings → Secrets and variables → Actions).
-2. Run the **Maestro bootstrap** workflow from the Actions tab to create the labels.
+1. Generate the token by running `claude setup-token` in a terminal where Claude Code is installed.
+2. Set the token as a repository secret named `CLAUDE_CODE_OAUTH_TOKEN` (Settings → Secrets and variables → Actions).
+3. Run the **Maestro bootstrap** workflow from the Actions tab to create the labels.
 
 After setup, file an issue with the `maestro:direction` label and the loop runs.
 
 ## Public-repo safety
 
-Maestro is safe to run on public repositories. The workflows that consume `ANTHROPIC_API_KEY` are gated on `author_association` and only fire when the actor is `OWNER`, `MEMBER`, or `COLLABORATOR`. Issues, comments, and PRs from anyone else are visible but cannot trigger Maestro. GitHub additionally does not pass secrets to workflows triggered by fork pull requests.
+Maestro is safe to run on public repositories. The workflows that consume your subscription credits are gated on `author_association` and only fire when the actor is `OWNER`, `MEMBER`, or `COLLABORATOR`. Issues, comments, and PRs from anyone else are visible but cannot trigger Maestro. GitHub additionally does not pass secrets to workflows triggered by fork pull requests.

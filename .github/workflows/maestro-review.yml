@@ -13,7 +13,7 @@ jobs:
   review:
     # Only review PRs opened by a trusted actor (OWNER / MEMBER / COLLABORATOR).
     # On public repos, this prevents fork PRs from triggering a workflow that
-    # consumes ANTHROPIC_API_KEY credits. (Note: GitHub already does not pass
+    # consumes your subscription credits. (Note: GitHub already does not pass
     # secrets to workflows triggered by fork PRs, but this gate makes the
     # intent explicit and covers any future trigger expansion.)
     if: |
@@ -46,7 +46,7 @@ jobs:
       - name: Run Reviewer
         uses: anthropics/claude-code-base-action@beta
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt_file: prompts/reviewer.md
           append_prompt: ${{ steps.ctx.outputs.context }}
           allowed_tools: "Bash,Read,Glob,Grep,mcp__github__*"

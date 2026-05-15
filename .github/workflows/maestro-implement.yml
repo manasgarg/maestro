@@ -22,7 +22,7 @@ jobs:
     #
     # "Trusted actor" = OWNER / MEMBER / COLLABORATOR. On public repos, this
     # prevents random commenters from triggering Maestro workflows that have
-    # ANTHROPIC_API_KEY in their environment.
+    # the subscription OAuth token in their environment.
     if: |
       (github.event_name == 'issues' && github.event.label.name == 'maestro:direction' && contains(fromJson('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.issue.author_association)) ||
       (github.event_name == 'issue_comment' && contains(github.event.issue.labels.*.name, 'maestro:direction') && contains(fromJson('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association)) ||
@@ -69,7 +69,7 @@ jobs:
       - name: Run Implementer
         uses: anthropics/claude-code-base-action@beta
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt_file: prompts/implementer.md
           append_prompt: ${{ steps.ctx.outputs.context }}
           allowed_tools: "Bash,Edit,Read,Write,Glob,Grep,mcp__github__*"

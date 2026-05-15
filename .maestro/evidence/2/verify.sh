@@ -69,6 +69,16 @@ for f in .github/workflows/maestro-implement.yml .github/workflows/maestro-revie
 done
 printf "\n"
 
+printf "## Auth uses subscription OAuth token, not API key\n"
+for f in .github/workflows/maestro-implement.yml .github/workflows/maestro-review.yml; do
+  if grep -q "claude_code_oauth_token" "$f" && ! grep -q "ANTHROPIC_API_KEY" "$f"; then
+    ok "$f uses CLAUDE_CODE_OAUTH_TOKEN"
+  else
+    miss "$f auth misconfigured"
+  fi
+done
+printf "\n"
+
 printf "## PR template includes Observable change + Evidence sections\n"
 for s in "Observable change" "Evidence" "Open AI feedback"; do
   if grep -q "$s" .github/pull_request_template.md; then ok "section: $s"; else miss "section: $s"; fi

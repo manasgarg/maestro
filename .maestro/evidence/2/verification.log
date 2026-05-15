@@ -1,14 +1,14 @@
 === Bootstrap PR #2 self-verification ===
-Run at: 2026-05-15T19:18:13Z
-Commit: 55ac4ce5439dd00429e87c6589a10c719ae620f8
+Run at: 2026-05-15T19:34:26Z
+Commit: 6140e5d76f3d712d766638ac50c41c9e0268f5a3
 
 ## File inventory
-[OK]    DESIGN.md (6691 bytes)
-[OK]    README.md (2041 bytes)
+[OK]    DESIGN.md (6943 bytes)
+[OK]    README.md (2305 bytes)
 [OK]    prompts/implementer.md (6838 bytes)
 [OK]    prompts/reviewer.md (2278 bytes)
-[OK]    .github/workflows/maestro-implement.yml (3569 bytes)
-[OK]    .github/workflows/maestro-review.yml (2328 bytes)
+[OK]    .github/workflows/maestro-implement.yml (3592 bytes)
+[OK]    .github/workflows/maestro-review.yml (2340 bytes)
 [OK]    .github/workflows/maestro-bootstrap.yml (1730 bytes)
 [OK]    .github/pull_request_template.md (921 bytes)
 [OK]    .github/ISSUE_TEMPLATE/maestro-direction.md (399 bytes)
@@ -50,6 +50,10 @@ Commit: 55ac4ce5439dd00429e87c6589a10c719ae620f8
 [OK]    .github/workflows/maestro-implement.yml gated
 [OK]    .github/workflows/maestro-review.yml gated
 
+## Auth uses subscription OAuth token, not API key
+[OK]    .github/workflows/maestro-implement.yml uses CLAUDE_CODE_OAUTH_TOKEN
+[OK]    .github/workflows/maestro-review.yml uses CLAUDE_CODE_OAUTH_TOKEN
+
 ## PR template includes Observable change + Evidence sections
 [OK]    section: Observable change
 [OK]    section: Evidence
@@ -59,5 +63,5 @@ Commit: 55ac4ce5439dd00429e87c6589a10c719ae620f8
 [OK]    label set
 
 === SUMMARY ===
-Passed: 38
+Passed: 40
 Failed: 0

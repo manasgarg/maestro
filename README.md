@@ -22,8 +22,11 @@ React with 👍 on the proposal comment, or reply with "go" / "approved" / any p
 
 ## Setup (one-time)
 
-1. Add `ANTHROPIC_API_KEY` to repository secrets (Settings → Secrets and variables → Actions).
-2. Go to the Actions tab and run the **Maestro bootstrap** workflow. This creates the labels Maestro uses.
+Maestro uses your existing Claude Code subscription via an OAuth token — no separate API billing.
+
+1. In a terminal where Claude Code is installed, run `claude setup-token`. It prints a long-lived OAuth token.
+2. In this repo: Settings → Secrets and variables → Actions → New repository secret → name it `CLAUDE_CODE_OAUTH_TOKEN`, paste the token.
+3. Go to the Actions tab and run the **Maestro bootstrap** workflow once. This creates the labels Maestro uses.
 
 After that, file a `maestro:direction` issue and the loop runs.
 
