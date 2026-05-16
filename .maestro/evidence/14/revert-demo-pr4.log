@@ -1,0 +1,33 @@
+# Anti-no-op revert evidence for PR 4 / issue #14
+#
+# To prove the new test (tests/test_upstream_learning_flow.sh) isn't
+# vacuous, the helper script was temporarily moved aside:
+#
+#   mv tools/upstream_learning.sh /tmp/upstream_learning.sh.bak
+#
+# The test then catches the missing helper at section 1 (existence /
+# executable check). After capturing this, the script was restored and
+# the suite is green again (14 passed, 0 failed).
+
+PASS tests/test_adversarial_pass_convention.sh
+PASS tests/test_bug_fix_test_first_convention.sh
+PASS tests/test_ci_gate_workflow.sh
+PASS tests/test_demo_convention.sh
+PASS tests/test_install_satellite_fresh.sh
+PASS tests/test_install_satellite_mature.sh
+PASS tests/test_pre_mortem_convention.sh
+PASS tests/test_reusable_workflows.sh
+PASS tests/test_revert_evidence_convention.sh
+PASS tests/test_rollout_workflow.sh
+PASS tests/test_satellite_template.sh
+PASS tests/test_satellites_registry.sh
+PASS tests/test_test_per_criterion_convention.sh
+FAIL tests/test_upstream_learning_flow.sh
+
+Summary: 13 passed, 1 failed (of 14 tests).
+
+Failing tests (re-run individually for details):
+  tests/test_upstream_learning_flow.sh
+
+# Direct invocation of the failing test, showing the specific contract gap:
+FAIL: tools/upstream_learning.sh does not exist; satellites have no way to route workflow-level learnings upstream.

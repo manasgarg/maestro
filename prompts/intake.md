@@ -58,7 +58,7 @@ For each candidate convention you extract:
 
 If the human confirms a **repo-specific** candidate: write a new file under `.maestro/learnings/` with valid frontmatter (`source:` pointing to the file or PR that surfaced it, `date:` today, `tags:` including at least one repo-specific tag), regenerate the index (`python3 .maestro-src/tools/build_learnings_index.py` — or fetch the script from raw.githubusercontent.com if no sidecar), and commit on the current branch with message `learning: <slug>`.
 
-If the human confirms a **workflow-level** candidate: write a file under `.maestro/upstream-candidates/` with the same frontmatter plus a `target: manasgarg/maestro` field. These files are not learnings yet — they're queued for PR 4 of issue #14, which routes them as PRs into the Maestro repo. Print clearly: "queued as upstream candidate; will be PR'd to Maestro by the next upstream-flow run."
+If the human confirms a **workflow-level** candidate: write the file to a temp path (e.g., `/tmp/<slug>.md`) with the same frontmatter (`source:`, `date:`, `tags:`). Do **not** add it to `.maestro/learnings/` in the satellite — workflow learnings belong in Maestro, not in any one satellite. Then route it upstream by running `tools/upstream_learning.sh /tmp/<slug>.md`. The script lives at `.maestro-src/tools/upstream_learning.sh` if you have a Maestro sidecar checkout; otherwise fetch it: `curl -fsSL https://raw.githubusercontent.com/manasgarg/maestro/$(cat .maestro/version)/tools/upstream_learning.sh -o /tmp/upstream_learning.sh && bash /tmp/upstream_learning.sh /tmp/<slug>.md`. The script opens an "Upstream learning: <slug>" PR in `manasgarg/maestro`; print the PR URL in your output. Auth: in an interactive session, `gh auth` is typically your personal token; in a non-interactive context, the satellite needs a `MAESTRO_UPSTREAM_PAT` secret (see Maestro README).
 
 If the human skips: print one line ("skipped: <reason>") and move on.
 
@@ -76,12 +76,12 @@ Print a short summary:
 
 ```
 Intake complete.
-  Repo-specific learnings written: <N>  (listed below)
-  Upstream candidates queued: <M>      (listed below)
+  Repo-specific learnings committed locally: <N>  (listed below)
+  Upstream learning PRs opened in Maestro:   <M>  (listed below, with URLs)
   Skipped: <K>
 ```
 
-Then list each item with its filename. Do not commit a marker file or open a PR — the human is in the session and can take it from here. The install workflow doesn't need to know intake ran; the human runs intake when it's useful and ignores it when it isn't.
+Then list each item — repo-specific ones with their committed filename, upstream ones with their Maestro PR URL. Do not commit a marker file. The install workflow doesn't need to know intake ran; the human runs intake when it's useful and ignores it when it isn't.
 
 ## Style
 

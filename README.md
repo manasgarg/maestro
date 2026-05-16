@@ -60,6 +60,17 @@ One-time PAT setup (the workflow's built-in `GITHUB_TOKEN` can't write to anothe
 
 You can also dispatch the rollout manually from Maestro's Actions tab — use the `ref` input to bump to any tag, branch, or sha, and `dry_run: true` to preview the plan without opening PRs. Each satellite's previous open bump PR is closed automatically when the next rollout supersedes it, so you never end up with two competing bump PRs in the same satellite.
 
+## Receive upstream learnings from satellites
+
+The reverse of the bump flow: when a Maestro session inside a satellite produces a learning that's about the *Maestro process itself* (workflows, agent prompts, evidence conventions, GitHub event quirks) rather than the satellite's own domain, the synthesizer routes it back to Maestro as a PR titled "Upstream learning: \<slug\>". You review and merge as usual; the learning ships in the next Maestro release tag and rolls back out to every satellite on bump.
+
+Two paths produce upstream PRs:
+
+- **Interactive.** Running `/learn` or `/maestro-intake` in a Claude Code session inside a satellite. Auth uses your personal `gh auth login` — no extra setup; the PR shows up authored by you.
+- **Scheduled.** The satellite's daily Maestro Learn workflow (cron). Auth uses a satellite-side PAT secret named `MAESTRO_UPSTREAM_PAT` — create a fine-grained PAT scoped to `manasgarg/maestro` with `Contents: Read and write` and `Pull requests: Read and write`, and add it to each satellite that should be allowed to PR upstream. Without the secret, the scheduled run just skips workflow-level candidates with a notice (your next interactive `/learn` can route them).
+
+You don't need to do anything on the Maestro side — incoming PRs land on `main` like any other PR, with a body explaining which satellite extracted the learning and why the synthesizer thought it was workflow-level (not repo-specific). Close the PR if you disagree with the classification.
+
 ## Safe on public repos
 
 The workflows that consume your API key are gated on `author_association` and only run for the repo owner, members, or collaborators. Issues and comments from anyone else are visible but cannot trigger Maestro.
