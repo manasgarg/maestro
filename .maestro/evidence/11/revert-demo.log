@@ -1,0 +1,53 @@
+Issue #11 — Anti-no-op revert demo
+===================================
+
+All of the change shipped by this PR (PR template update, Implementer/Reviewer
+prompt updates, Adversarial Reviewer prompt, CI workflow, test runner, tests,
+DESIGN.md update, evidence directory) has been removed via:
+    git stash --include-untracked
+
+Captured below is what happens when the PR's own test suite is invoked
+against this pre-change state. The failures prove the change is doing work.
+
+--- git status (post-stash, pre-change state) ---
+
+--- attempting to run tools/run_tests.sh (the CI gate) ---
+tools/run_tests.sh does not exist in this state. The CI workflow
+(.github/workflows/maestro-ci.yml) would fail at the 'Run tests' step
+because it tries to execute a missing script:
+
+bash: tools/run_tests.sh: No such file or directory
+[bash exit 127]
+
+--- checking each per-criterion test individually ---
+MISSING: tests/test_demo_convention.sh
+MISSING: tests/test_pre_mortem_convention.sh
+MISSING: tests/test_test_per_criterion_convention.sh
+MISSING: tests/test_ci_gate_workflow.sh
+MISSING: tests/test_revert_evidence_convention.sh
+MISSING: tests/test_bug_fix_test_first_convention.sh
+MISSING: tests/test_adversarial_pass_convention.sh
+
+--- checking the Adversarial Reviewer prompt ---
+MISSING: prompts/adversarial-reviewer.md
+
+--- checking the Maestro CI workflow ---
+MISSING: .github/workflows/maestro-ci.yml — no CI gate at all
+
+--- grepping the PR template for the new sections ---
+MISSING from PR template: ## Demo
+MISSING from PR template: ## Pre-mortem
+MISSING from PR template: ## Adversarial pass
+
+--- grepping the Implementer prompt for the new requirements ---
+MISSING from Implementer: narrated Demo
+MISSING from Implementer: Pre-mortem
+MISSING from Implementer: Adversarial pass
+MISSING from Implementer: revert-demo.log
+MISSING from Implementer: Bug-fix
+MISSING from Implementer: separate, earlier commit
+
+Conclusion: in the pre-change state, every acceptance-criterion test for
+this PR is either missing entirely (so the CI workflow has nothing to
+run) or, if the runner existed, would fail because none of the conventions
+this PR establishes are in place. The PR is not a no-op.

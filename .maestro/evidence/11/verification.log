@@ -1,0 +1,44 @@
+Issue #11 — Bind every acceptance criterion to a test, a runbook step, and an evidence file
+===============================================================================
+
+PASS  C1: PR template has a Demo section anchored to .maestro/evidence/<issue>/; Implementer requires it.
+        -> PR template: .github/pull_request_template.md (## Demo)
+        -> Implementer rule: prompts/implementer.md (Per-PR deliverables #1)
+        -> Test: tests/test_demo_convention.sh
+PASS  C2: PR template has a Pre-mortem section pairing risks with mitigations; Implementer requires it.
+        -> PR template: .github/pull_request_template.md (## Pre-mortem)
+        -> Implementer rule: prompts/implementer.md (Per-PR deliverables #4)
+        -> Test: tests/test_pre_mortem_convention.sh
+PASS  C3: Test runner exists and is executable; Implementer requires a test per criterion; PR template asks for the test path.
+        -> Runner: tools/run_tests.sh
+        -> Implementer rule: prompts/implementer.md (Per-PR deliverables #2)
+        -> Test: tests/test_test_per_criterion_convention.sh
+PASS  C4: Maestro CI workflow triggers on pull_request and invokes the test runner; test runner exits non-zero on any failing test (verified by tests/test_ci_gate_workflow.sh).
+        -> Workflow: .github/workflows/maestro-ci.yml
+        -> Test (includes runner-exits-non-zero subcheck): tests/test_ci_gate_workflow.sh
+PASS  C5: Implementer requires a captured revert-demo.log for non-trivial direction; PR template calls it out under Evidence.
+        -> Implementer rule: prompts/implementer.md (Per-PR deliverables #3)
+        -> PR template anchor: .github/pull_request_template.md (Evidence section)
+        -> This PR's revert-demo log: .maestro/evidence/11/revert-demo.log
+        -> Test: tests/test_revert_evidence_convention.sh
+PASS  C6: Implementer requires the failing test in a separate, earlier commit than the fix; squashing those two commits is forbidden.
+        -> Implementer rule: prompts/implementer.md (Bug-fix PRs section)
+        -> Reviewer audits this: prompts/reviewer.md
+        -> Test: tests/test_bug_fix_test_first_convention.sh
+PASS  C7: Adversarial Reviewer prompt exists; Implementer must spawn it before opening the PR and commit its output; PR template summarizes the findings.
+        -> Adversarial Reviewer prompt: prompts/adversarial-reviewer.md
+        -> Implementer rule: prompts/implementer.md (Per-PR deliverables #5)
+        -> This PR's adversarial review: .maestro/evidence/11/adversarial-review.md
+        -> Test: tests/test_adversarial_pass_convention.sh
+
+Running the full test suite (the same way the CI workflow does):
+---------------------------------------------------------------
+PASS tests/test_adversarial_pass_convention.sh
+PASS tests/test_bug_fix_test_first_convention.sh
+PASS tests/test_ci_gate_workflow.sh
+PASS tests/test_demo_convention.sh
+PASS tests/test_pre_mortem_convention.sh
+PASS tests/test_revert_evidence_convention.sh
+PASS tests/test_test_per_criterion_convention.sh
+
+Summary: 7 passed, 0 failed (of 7 tests).
