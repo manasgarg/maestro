@@ -73,16 +73,23 @@ grep -Eq '^  schedule:' "$WFDIR/maestro-learn.yml" \
 grep -Eq '^  pull_request:' "$WFDIR/maestro-ci.yml" \
   || fail "maestro-ci.yml lost its 'pull_request' trigger."
 
-# --- 6. Satellite callers are admitted by the job-level `if:`. Without
-#       this OR-branch, the github.event_name checks below it silently skip
-#       every satellite caller event that isn't issues/issue_comment/
-#       pull_request — turning the whole reusable surface into a no-op for
-#       any satellite that wires its shim to workflow_dispatch (the
-#       obvious "Run Maestro now" button) or any other event. Locks the
-#       fix for adversarial finding #1 + #2. ---
+# --- 6. The satellite contract for the agent-running workflows is event-
+#       shape-matched: a satellite shim MUST trigger on the same caller
+#       events Maestro itself triggers on, and calls from other events
+#       (e.g. workflow_dispatch) silently no-op by design. An earlier
+#       draft of this PR added an `inputs.maestro_ref != ''` OR-branch
+#       to admit non-matching events; ChatGPT Codex correctly flagged
+#       that this just burns credits with no work to do, because the
+#       implementer is keyed off the triggering event and the reviewer
+#       needs a PR. The OR-branch was reverted. This assertion locks
+#       the reversion in so a future agent doesn't re-introduce it. ---
 for wf in maestro-implement.yml maestro-review.yml; do
-  grep -q "inputs.maestro_ref != '' ||" "$WFDIR/$wf" \
-    || fail "$wf job-gate doesn't OR on inputs.maestro_ref; satellite callers from any non-issue/PR event silently no-op."
+  # Skip comment lines (those starting with optional whitespace + '#') so
+  # the regression check doesn't trip on the inline warning comments that
+  # explain why the OR-branch was reverted.
+  if grep -v '^[[:space:]]*#' "$WFDIR/$wf" | grep -q "inputs.maestro_ref != '' ||"; then
+    fail "$wf has the overly permissive 'inputs.maestro_ref != \\'\\' ||' OR-branch in its job-level if:. This admits satellite callers from any caller event (including workflow_dispatch) but the underlying logic has no useful work to do without a matching triggering event — the call burns credits. See the workflow comment for the rationale; either keep this surface event-shape-matched or add a proper input (e.g. pr_number) for non-matching callers."
+  fi
 done
 
 # --- 7. Satellite mode injects an explicit path-redirection block into

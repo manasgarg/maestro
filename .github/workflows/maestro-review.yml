@@ -30,14 +30,17 @@ jobs:
     # secrets to workflows triggered by fork PRs, but this gate makes the
     # intent explicit and covers any future trigger expansion.)
     #
-    # The `inputs.maestro_ref != ''` branch admits satellite callers; the
-    # satellite shim is responsible for gating its own caller event before
-    # invoking us. Without this branch, satellite shims that call from any
-    # non-pull_request event silently no-op (in a reusable workflow,
-    # `github.event` is the caller's event — if it's not a PR event,
-    # `github.event.pull_request.author_association` is null).
+    # SATELLITE CONTRACT: Satellite shims that call this workflow MUST
+    # trigger on `pull_request` events (`opened`/`synchronize`/`reopened`).
+    # Calls from any other caller event (e.g. `workflow_dispatch`) will
+    # silently no-op, which is by design: the reviewer's only job is to
+    # review a specific PR, and `github.event.pull_request.*` is empty on
+    # non-PR events — there would be no PR to review and no useful work to
+    # do. Do not add an `inputs.maestro_ref != '' ||` OR-branch to admit
+    # non-PR callers without also adding an explicit `pr_number` input;
+    # otherwise the workflow will burn credits with no target. (Flagged by
+    # ChatGPT Codex on PR #15 — see .maestro/evidence/14/adversarial-pass-resolution.md.)
     if: |
-      inputs.maestro_ref != '' ||
       contains(fromJson('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.pull_request.author_association)
     runs-on: ubuntu-latest
     steps:

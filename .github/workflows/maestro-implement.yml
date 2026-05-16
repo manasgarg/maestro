@@ -41,21 +41,25 @@ jobs:
     # - a maestro:direction label is added to an issue by a trusted actor
     # - a comment by a trusted actor is added to a maestro:direction issue
     # - a PR opened by a trusted actor that closes a maestro:direction issue is merged
-    # - a satellite repo calls this workflow via workflow_call (matched by
-    #   the `inputs.maestro_ref != ''` branch). The satellite shim is the
-    #   satellite owner's code, secrets are inherited explicitly, and the
-    #   satellite is responsible for gating its own caller event (typically
-    #   with the same author_association check on whatever trigger fires
-    #   the shim). Without this branch, the three github.event_name checks
-    #   below silently skip every satellite caller event that isn't
-    #   issues/issue_comment/pull_request (in a reusable workflow,
-    #   `github.event_name` is the caller's event, not 'workflow_call').
+    #
+    # SATELLITE CONTRACT: Satellite shims that call this workflow MUST
+    # trigger on the same event types Maestro itself does — `issues`
+    # (labeled), `issue_comment` (created), and `pull_request` (closed).
+    # Calls from any other caller event (e.g. `workflow_dispatch`) will
+    # silently no-op, which is by design: the implementer's behavior is
+    # keyed off the triggering event (see the "Triggering events" section
+    # of prompts/implementer.md), and there is no useful work to do
+    # without one. Do not add an `inputs.maestro_ref != '' ||` OR-branch
+    # to admit other caller events without also re-architecting the
+    # implementer to discover work on its own; otherwise the workflow
+    # burns credits scanning an empty triggering context. (Same family as
+    # the maestro-review.yml issue ChatGPT Codex flagged on PR #15 — see
+    # .maestro/evidence/14/adversarial-pass-resolution.md.)
     #
     # "Trusted actor" = OWNER / MEMBER / COLLABORATOR. On public repos, this
     # prevents random commenters from triggering Maestro workflows that have
     # the subscription OAuth token in their environment.
     if: |
-      inputs.maestro_ref != '' ||
       (github.event_name == 'issues' && github.event.label.name == 'maestro:direction' && contains(fromJson('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.issue.author_association)) ||
       (github.event_name == 'issue_comment' && contains(github.event.issue.labels.*.name, 'maestro:direction') && contains(fromJson('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association)) ||
       (github.event_name == 'pull_request' && github.event.pull_request.merged == true && contains(fromJson('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.pull_request.author_association))
