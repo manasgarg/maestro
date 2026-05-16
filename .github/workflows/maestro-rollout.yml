@@ -1,0 +1,247 @@
+name: Maestro Rollout
+
+# Roll a Maestro release out to every registered satellite. Fires on tag
+# push (e.g. v0.2.0) and can also be dispatched manually for any ref.
+#
+# For each satellite listed in satellites.txt, this workflow:
+#   1. Clones the satellite using a PAT (see MAESTRO_ROLLOUT_PAT below).
+#   2. Runs tools/install_satellite.py against it at the target ref.
+#   3. If the script produced any changes (i.e. the satellite wasn't
+#      already pinned to this ref), closes any open "Bump Maestro to ..."
+#      PRs in the satellite as superseded, then opens a fresh one.
+#
+# The PAT requirement: a workflow's built-in GITHUB_TOKEN is scoped to
+# the repo it runs in, so it cannot push branches or open PRs in another
+# repo. A fine-grained Personal Access Token belonging to the satellite
+# owner — with `contents: write` and `pull-requests: write` permissions
+# on each registered satellite — must be stored in this repo's secrets
+# as MAESTRO_ROLLOUT_PAT. Bump PRs appear opened by whoever owns the
+# PAT, and commits are authored by that same identity (so the PR author
+# and the commit author match — see PR 3 adversarial-pass resolution).
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Ref to roll out (tag, branch, or sha). Required on manual dispatch — no default."
+        required: true
+        type: string
+      dry_run:
+        description: "If true, plan the rollout without cloning or pushing anything."
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  rollout:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out Maestro at the target ref
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve target ref
+        id: ref
+        env:
+          INPUT_REF: ${{ github.event.inputs.ref }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -eu
+          if [ -n "${INPUT_REF}" ]; then
+            REF="${INPUT_REF}"
+          elif [ "$EVENT_NAME" = "push" ] && [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            REF="${GITHUB_REF#refs/tags/}"
+          else
+            echo "::error::Could not resolve a target ref. On workflow_dispatch the 'ref' input is required; on push, only tag refs are supported (this run had GITHUB_REF=$GITHUB_REF)."
+            exit 1
+          fi
+          echo "target=$REF" >> "$GITHUB_OUTPUT"
+          echo "Rolling out: $REF"
+
+      - name: Read satellites registry
+        id: registry
+        run: |
+          set -eu
+          REG=satellites.txt
+          OUT="$RUNNER_TEMP/satellites.list"
+          : > "$OUT"
+          if [ ! -f "$REG" ]; then
+            echo "::notice::satellites.txt does not exist; no satellites to roll out to."
+            echo "count=0" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Parse per line: skip blank/comment lines, validate owner/repo
+          # shape. Crucially do NOT 'tr -d [:space:]' the whole file —
+          # that concatenates every entry onto one line.
+          awk '
+            /^[[:space:]]*(#|$)/ { next }
+            {
+              gsub(/[[:space:]]+/, "")
+              if ($0 == "") next
+              if ($0 ~ /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/) {
+                print
+              } else {
+                printf("ERROR: malformed registry line: %s\n", $0) > "/dev/stderr"
+                exit 1
+              }
+            }
+          ' "$REG" > "$OUT"
+          COUNT=$(awk 'END{print NR}' "$OUT")
+          echo "count=$COUNT" >> "$GITHUB_OUTPUT"
+          if [ "$COUNT" -eq 0 ]; then
+            echo "::notice::No satellites registered yet; nothing to roll out."
+          else
+            echo "Registered satellites ($COUNT):"
+            sed 's/^/  - /' "$OUT"
+          fi
+
+      - name: Roll out to each satellite
+        if: steps.registry.outputs.count != '0'
+        env:
+          GH_TOKEN: ${{ secrets.MAESTRO_ROLLOUT_PAT }}
+          TARGET_REF: ${{ steps.ref.outputs.target }}
+          DRY_RUN: ${{ github.event.inputs.dry_run }}
+        run: |
+          set -u  # not -e at the outer level: per-satellite failures
+                  # must not abort the whole rollout. Each per-satellite
+                  # block runs in its own subshell with `set -eu -o
+                  # pipefail` so any unanticipated git/gh failure aborts
+                  # that satellite and increments FAIL_COUNT, instead of
+                  # silently falling through into the next command.
+
+          if [ -z "${GH_TOKEN}" ]; then
+            echo "::error::MAESTRO_ROLLOUT_PAT secret is not set. See the workflow's header comment for the PAT requirements."
+            exit 1
+          fi
+
+          git config --global url."https://x-access-token:${GH_TOKEN}@github.com/".insteadOf "https://github.com/"
+
+          # Use the PAT owner's identity for commits so the PR author
+          # (the PAT owner) and the commit author match — avoids the
+          # "github-actions[bot] authored, you opened" mismatch and
+          # works with satellites that require human-authored commits.
+          PAT_USER=$(gh api user --jq .login)
+          PAT_USER_ID=$(gh api user --jq .id)
+          git config --global user.name  "$PAT_USER"
+          git config --global user.email "${PAT_USER_ID}+${PAT_USER}@users.noreply.github.com"
+          echo "Commits will be authored by: $PAT_USER <${PAT_USER_ID}+${PAT_USER}@users.noreply.github.com>"
+
+          MAESTRO_DIR="$GITHUB_WORKSPACE"
+          FAIL_COUNT=0
+          BUMP_COUNT=0
+          ALREADY_AT_REF_COUNT=0
+
+          while IFS= read -r SAT; do
+            [ -z "$SAT" ] && continue
+            echo
+            echo "=== $SAT ==="
+
+            rc=0
+            # Inline subshell with strict mode. Sentinel exit codes:
+            #   0   = bump PR opened (or would-open on dry-run)
+            #   100 = satellite already pinned to this ref (no-op)
+            #   1   = error (caught by case below, increments FAIL_COUNT)
+            (
+              set -eu -o pipefail
+
+              SAT_DIR="$RUNNER_TEMP/sat-$(echo "$SAT" | tr '/' '-')"
+              rm -rf "$SAT_DIR"
+              git clone --depth 1 "https://github.com/${SAT}.git" "$SAT_DIR"
+
+              INSTALL_LOG="$RUNNER_TEMP/install-$(echo "$SAT" | tr '/' '-').log"
+              python3 "$MAESTRO_DIR/tools/install_satellite.py" \
+                --version "$TARGET_REF" \
+                --target "$SAT_DIR" \
+                --source "$MAESTRO_DIR/tools/satellite-template" \
+                > "$INSTALL_LOG" 2>&1
+              sed 's/^/  /' "$INSTALL_LOG"
+
+              cd "$SAT_DIR"
+              git add -A
+              if git diff --cached --quiet; then
+                echo "  Satellite already pinned to ${TARGET_REF}. Nothing to bump."
+                exit 100
+              fi
+
+              if [ "${DRY_RUN}" = "true" ]; then
+                echo "  [dry-run] Would open a bump PR with these changes:"
+                git diff --cached --stat | sed 's/^/    /'
+                exit 0
+              fi
+
+              # Close superseded open bump PRs. Use the LIST API (not
+              # search) so we get real-time state — the search index
+              # lags by minutes and would miss a bump PR opened seconds
+              # ago by a back-to-back rollout.
+              OPEN_TSV="$RUNNER_TEMP/openprs-$(echo "$SAT" | tr '/' '-').tsv"
+              gh -R "$SAT" pr list --state open --json number,headRefName \
+                --jq '.[] | select(.headRefName | startswith("maestro/bump-")) | "\(.number)\t\(.headRefName)"' \
+                > "$OPEN_TSV" || true
+              if [ -s "$OPEN_TSV" ]; then
+                echo "  Closing previous open bump PRs in $SAT (superseded by this rollout):"
+                while IFS=$'\t' read -r num head; do
+                  echo "    #$num ($head)"
+                  gh -R "$SAT" pr close "$num" --comment "Superseded by bump to ${TARGET_REF}." --delete-branch || echo "    (could not close #$num)"
+                done < "$OPEN_TSV"
+              fi
+
+              BRANCH="maestro/bump-${TARGET_REF}-$(date -u +%Y%m%d%H%M%S)"
+              git checkout -b "$BRANCH"
+              git commit -m "Bump Maestro to ${TARGET_REF}"
+
+              PUSH_LOG="$RUNNER_TEMP/push-$(echo "$SAT" | tr '/' '-').log"
+              if ! git push -u origin "$BRANCH" 2>&1 | tee "$PUSH_LOG"; then
+                if grep -qiE 'protected branch|signature required|signed commits' "$PUSH_LOG"; then
+                  echo "  ::warning::Push to $SAT rejected by branch protection (likely requires signed commits on the maestro/bump-* namespace)."
+                fi
+                exit 1
+              fi
+
+              # Build the PR body in a file. Avoids YAML/shell heredoc
+              # indentation coupling and lets gh pr create read the
+              # markdown back faithfully.
+              BODY_FILE="$RUNNER_TEMP/body-$(echo "$SAT" | tr '/' '-').md"
+              {
+                printf 'Bumps this satellite'"'"'s pinned Maestro version to **%s**.\n\n' "$TARGET_REF"
+                printf '## What changed\n\n'
+                printf 'The four workflow shims under `.github/workflows/` now point at `manasgarg/maestro@%s`, `.maestro/version` is updated, and the PR/issue templates are refreshed to match the canonical Maestro version. If your repo has its own `tools/run_tests.sh`, it was left untouched.\n\n' "$TARGET_REF"
+                printf '## Plan that was executed\n\n'
+                printf '```\n'
+                cat "$INSTALL_LOG"
+                printf '\n```\n\n'
+                printf '## Auto-generated\n\n'
+                printf 'Opened by Maestro'"'"'s rollout workflow. If you'"'"'d rather not receive bump PRs, remove this satellite from `satellites.txt` in `manasgarg/maestro` and the next rollout will skip it. Merge this PR to take the upgrade; close it to stay on the previous version.\n'
+              } > "$BODY_FILE"
+
+              gh -R "$SAT" pr create \
+                --title "Bump Maestro to ${TARGET_REF}" \
+                --body-file "$BODY_FILE" \
+                --head "$BRANCH"
+
+              exit 0
+            ) || rc=$?
+
+            case "$rc" in
+              0)   BUMP_COUNT=$((BUMP_COUNT + 1)) ;;
+              100) ALREADY_AT_REF_COUNT=$((ALREADY_AT_REF_COUNT + 1)) ;;
+              *)   echo "  ::warning::Per-satellite step failed for $SAT (exit $rc). Continuing with the next satellite."
+                   FAIL_COUNT=$((FAIL_COUNT + 1)) ;;
+            esac
+          done < "$RUNNER_TEMP/satellites.list"
+
+          echo
+          echo "=== Rollout summary for ${TARGET_REF} ==="
+          echo "  Bump PRs opened (or would-open on dry-run): $BUMP_COUNT"
+          echo "  Satellites already at ref:                  $ALREADY_AT_REF_COUNT"
+          echo "  Failed:                                     $FAIL_COUNT"
+
+          if [ "$FAIL_COUNT" -gt 0 ]; then
+            echo "::warning::$FAIL_COUNT satellite(s) failed during rollout. The rollout step still exits 0 so a single bad satellite doesn't block bumping the rest; see the per-satellite log lines above for the failure reasons."
+          fi

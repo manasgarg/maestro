@@ -1,0 +1,38 @@
+# Anti-no-op revert evidence for PR 3 / issue #14
+#
+# To prove PR 3's two new tests aren't vacuous, the new rollout files
+# were temporarily moved aside:
+#
+#   mv .github/workflows/maestro-rollout.yml /tmp/maestro-rollout.yml.bak
+#   mv satellites.txt                        /tmp/satellites.txt.bak
+#
+# (The new tests themselves stayed in tests/.) The suite then reports the
+# suite-level result followed by the direct invocation of each new test,
+# which surfaces the specific contract gap each one is locking in. After
+# capturing this, both pieces were restored and the suite is green again
+# (Summary: 13 passed, 0 failed).
+
+PASS tests/test_adversarial_pass_convention.sh
+PASS tests/test_bug_fix_test_first_convention.sh
+PASS tests/test_ci_gate_workflow.sh
+PASS tests/test_demo_convention.sh
+PASS tests/test_install_satellite_fresh.sh
+PASS tests/test_install_satellite_mature.sh
+PASS tests/test_pre_mortem_convention.sh
+PASS tests/test_reusable_workflows.sh
+PASS tests/test_revert_evidence_convention.sh
+FAIL tests/test_rollout_workflow.sh
+PASS tests/test_satellite_template.sh
+FAIL tests/test_satellites_registry.sh
+PASS tests/test_test_per_criterion_convention.sh
+
+Summary: 11 passed, 2 failed (of 13 tests).
+
+Failing tests (re-run individually for details):
+  tests/test_rollout_workflow.sh
+  tests/test_satellites_registry.sh
+
+# Direct invocations of the two failing tests, showing the specific
+# contract gap each catches:
+FAIL: .github/workflows/maestro-rollout.yml does not exist.
+FAIL: satellites.txt does not exist; the rollout workflow cannot find the registry.

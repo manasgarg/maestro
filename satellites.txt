@@ -1,0 +1,19 @@
+# Maestro satellite registry.
+#
+# One satellite per line, owner/repo. Lines starting with # are comments;
+# blank lines are ignored. When you push a tag like `v0.2.0` to Maestro,
+# the rollout workflow (.github/workflows/maestro-rollout.yml) opens a
+# "Bump Maestro to v0.2.0" PR in each satellite listed here.
+#
+# To register a satellite:
+#   1. Install Maestro in that repo first (see README → "Install Maestro
+#      on another repo"). Without an install, there's nothing to bump.
+#   2. Add a line below: `<owner>/<repo>`.
+#   3. Commit on a branch and open a PR. The line takes effect the next
+#      time a Maestro version is tagged.
+#
+# To unregister: delete the line. The satellite stops receiving bump PRs
+# but keeps running at whatever version it's currently pinned to.
+
+# Example (uncomment after installing Maestro in the target repo):
+# manasgarg/my-satellite-repo

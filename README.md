@@ -49,6 +49,17 @@ To install:
 
 **Re-dispatching:** running Maestro Install again with the same ref against an already-installed satellite is a no-op (with a clear notice). Use it to confirm the satellite is healthy or to re-create the labels if they were ever deleted.
 
+## Keep satellites bumped automatically
+
+Once you have one or more satellites installed, register them in [`satellites.txt`](./satellites.txt) (one `owner/repo` per line). Push a new Maestro tag (anything matching `v*` — typically a semver release like `v0.2.0`), and within a few minutes the rollout workflow opens a "Bump Maestro to v0.2.0" PR in every registered satellite. Merge each one when you're ready; satellites can sit on different versions indefinitely.
+
+One-time PAT setup (the workflow's built-in `GITHUB_TOKEN` can't write to another repo, so the rollout uses a PAT instead):
+
+1. Create a fine-grained Personal Access Token at GitHub → Settings → Developer settings → Fine-grained tokens → "Generate new token". Scope it to every registered satellite with the permissions `Contents: Read and write` and `Pull requests: Read and write`. (Or use a classic PAT with the `repo` scope if you prefer.)
+2. Add the token as a Maestro repo secret named `MAESTRO_ROLLOUT_PAT`.
+
+You can also dispatch the rollout manually from Maestro's Actions tab — use the `ref` input to bump to any tag, branch, or sha, and `dry_run: true` to preview the plan without opening PRs. Each satellite's previous open bump PR is closed automatically when the next rollout supersedes it, so you never end up with two competing bump PRs in the same satellite.
+
 ## Safe on public repos
 
 The workflows that consume your API key are gated on `author_association` and only run for the repo owner, members, or collaborators. Issues and comments from anyone else are visible but cannot trigger Maestro.

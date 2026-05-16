@@ -1,0 +1,37 @@
+
+=== 1. satellites.txt parses (every non-comment, non-blank line is owner/repo) ===
+  OK  satellites.txt exists
+  OK  no malformed lines
+  0 satellite(s) currently registered
+
+=== 2. Rollout workflow contract ===
+  OK  .github/workflows/maestro-rollout.yml exists
+  OK  fires on tag push
+  OK  matches v* tag pattern
+  OK  supports manual dispatch
+  OK  reads satellites.txt
+  OK  reuses the install script (no drift)
+  OK  references MAESTRO_ROLLOUT_PAT for cross-repo writes
+  OK  skips rollout step when no satellites are registered
+  OK  errors early when PAT is missing
+
+=== 3. Structural tests pass ===
+  OK  test_satellites_registry.sh
+  OK  test_rollout_workflow.sh
+
+=== 4. Full test suite ===
+PASS tests/test_adversarial_pass_convention.sh
+PASS tests/test_bug_fix_test_first_convention.sh
+PASS tests/test_ci_gate_workflow.sh
+PASS tests/test_demo_convention.sh
+PASS tests/test_install_satellite_fresh.sh
+PASS tests/test_install_satellite_mature.sh
+PASS tests/test_pre_mortem_convention.sh
+PASS tests/test_reusable_workflows.sh
+PASS tests/test_revert_evidence_convention.sh
+PASS tests/test_rollout_workflow.sh
+PASS tests/test_satellite_template.sh
+PASS tests/test_satellites_registry.sh
+PASS tests/test_test_per_criterion_convention.sh
+
+Summary: 13 passed, 0 failed (of 13 tests).
