@@ -1,0 +1,6 @@
+===== fresh session prompt =====
+Read /home/user/maestro/.maestro/learnings/INDEX.md and reply with exactly three .md filenames it links from the .maestro/learnings/ directory. Output filenames only, one per line, no markdown formatting, no other words.
+===== fresh session reply =====
+claude-code-base-action-input-shape.md
+maestro-evidence-as-rerunnable-script.md
+github-reactions-dont-trigger-workflows.md
