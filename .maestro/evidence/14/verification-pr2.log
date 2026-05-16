@@ -1,5 +1,5 @@
 
-=== 1. Satellite scaffold has all seven files ===
+=== 1. Satellite scaffold has all eight files (7 managed + 1 default) ===
   OK  .github/workflows/maestro-implement.yml
   OK  .github/workflows/maestro-review.yml
   OK  .github/workflows/maestro-ci.yml
@@ -7,6 +7,8 @@
   OK  .github/pull_request_template.md
   OK  .github/ISSUE_TEMPLATE/maestro-direction.md
   OK  .maestro/version
+  OK  tools/run_tests.sh
+  OK  tools/run_tests.sh is executable
 
 === 2. Fresh install: --dry-run plan + real run + placeholder substitution ===
   Install plan:
@@ -17,8 +19,9 @@
     WOULD-WRITE     .github/pull_request_template.md
     WOULD-WRITE     .github/ISSUE_TEMPLATE/maestro-direction.md
     WOULD-WRITE     .maestro/version
+    WOULD-WRITE     tools/run_tests.sh
   
-  Would install 7 file(s) into /tmp/tmp.wLZ0cCJu58/fresh. Maestro version pinned: v9.9.9-test.
+  Would install 8 file(s) into /tmp/tmp.tlyFY9lFPp/fresh. Maestro version pinned: v9.9.9-test.
 
   Installed:
     WRITE           .github/workflows/maestro-implement.yml
@@ -28,8 +31,9 @@
     WRITE           .github/pull_request_template.md
     WRITE           .github/ISSUE_TEMPLATE/maestro-direction.md
     WRITE           .maestro/version
+    WRITE           tools/run_tests.sh
   
-  Installed 7 file(s) into /tmp/tmp.wLZ0cCJu58/fresh. Maestro version pinned: v9.9.9-test.
+  Installed 8 file(s) into /tmp/tmp.tlyFY9lFPp/fresh. Maestro version pinned: v9.9.9-test.
 
   OK  no leftover __MAESTRO_VERSION__ placeholders
   OK  pinned ref substituted into shim and .maestro/version
@@ -48,8 +52,9 @@
     REPLACE         .github/pull_request_template.md
     WRITE           .github/ISSUE_TEMPLATE/maestro-direction.md
     WRITE           .maestro/version
+    WRITE           tools/run_tests.sh
   
-  Installed 7 file(s) into /tmp/tmp.wLZ0cCJu58/mature. Maestro version pinned: v0.1.0.
+  Installed 8 file(s) into /tmp/tmp.tlyFY9lFPp/mature. Maestro version pinned: v0.1.0.
 
   OK  prior PR template replaced
   OK  prior implementer shim replaced with canonical Maestro content pinned to v0.1.0

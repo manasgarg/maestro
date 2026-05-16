@@ -13,7 +13,13 @@ fail() { echo "FAIL: $*" >&2; exit 1; }
 
 TPLDIR="$repo_root/tools/satellite-template"
 
-# --- 1. All seven scaffold files are present. ---
+# --- 1. All scaffold files are present (seven Maestro-managed files plus
+#       one default file). tools/run_tests.sh is a "default" file — Maestro
+#       ships a sensible default but defers to the satellite's version if
+#       one exists. Without it, fresh satellites would get a permanently
+#       red Maestro CI check on every PR (the reusable maestro-ci workflow
+#       calls tools/run_tests.sh in the calling repo). Flagged by ChatGPT
+#       Codex on PR #16. ---
 for f in \
   ".github/workflows/maestro-implement.yml" \
   ".github/workflows/maestro-review.yml" \
@@ -22,9 +28,16 @@ for f in \
   ".github/pull_request_template.md" \
   ".github/ISSUE_TEMPLATE/maestro-direction.md" \
   ".maestro/version" \
+  "tools/run_tests.sh" \
 ; do
   [ -f "$TPLDIR/$f" ] || fail "satellite template is missing $f"
 done
+
+# tools/run_tests.sh must be executable in the template so the install
+# preserves the executable bit; without it the maestro-ci workflow fails
+# with permission denied.
+[ -x "$TPLDIR/tools/run_tests.sh" ] \
+  || fail "satellite template's tools/run_tests.sh is not executable; the maestro-ci workflow would fail with permission denied in the satellite."
 
 # --- 2. The four workflow shims plus .maestro/version use the
 #       __MAESTRO_VERSION__ placeholder. The install script substitutes

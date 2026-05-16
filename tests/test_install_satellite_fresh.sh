@@ -21,7 +21,10 @@ python3 "$repo_root/tools/install_satellite.py" \
   > "$target/install.log" 2>&1 \
   || fail "install_satellite.py exited non-zero on a fresh target:\n$(cat "$target/install.log")"
 
-# --- 2. All seven expected files exist in the target after install. ---
+# --- 2. All eight expected files exist in the target after install
+#       (seven Maestro-managed plus tools/run_tests.sh — the latter is
+#       a "default" file scaffolded only when missing; on a fresh repo
+#       it's missing, so install writes it). ---
 for f in \
   ".github/workflows/maestro-implement.yml" \
   ".github/workflows/maestro-review.yml" \
@@ -30,9 +33,16 @@ for f in \
   ".github/pull_request_template.md" \
   ".github/ISSUE_TEMPLATE/maestro-direction.md" \
   ".maestro/version" \
+  "tools/run_tests.sh" \
 ; do
   [ -f "$target/$f" ] || fail "install did not produce $f in the target."
 done
+
+# tools/run_tests.sh must be executable (the maestro-ci workflow calls
+# it directly; without the executable bit, every Maestro CI check is
+# red).
+[ -x "$target/tools/run_tests.sh" ] \
+  || fail "post-install tools/run_tests.sh is not executable; maestro-ci would fail."
 
 # --- 3. The placeholder is fully substituted with the requested version
 #       in every file that contained it. A leftover __MAESTRO_VERSION__

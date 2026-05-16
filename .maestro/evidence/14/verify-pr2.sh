@@ -19,7 +19,7 @@ cleanup() { [ -n "${TMP:-}" ] && [ -d "$TMP" ] && rm -rf "$TMP"; }
 trap cleanup EXIT
 TMP="$(mktemp -d)"
 
-heading "1. Satellite scaffold has all seven files"
+heading "1. Satellite scaffold has all eight files (7 managed + 1 default)"
 for f in \
   ".github/workflows/maestro-implement.yml" \
   ".github/workflows/maestro-review.yml" \
@@ -28,9 +28,11 @@ for f in \
   ".github/pull_request_template.md" \
   ".github/ISSUE_TEMPLATE/maestro-direction.md" \
   ".maestro/version" \
+  "tools/run_tests.sh" \
 ; do
   [ -f "tools/satellite-template/$f" ] && echo "  OK  $f" || { echo "  FAIL  missing $f"; exit 1; }
 done
+[ -x "tools/satellite-template/tools/run_tests.sh" ] && echo "  OK  tools/run_tests.sh is executable" || { echo "  FAIL  tools/run_tests.sh is not executable"; exit 1; }
 
 heading "2. Fresh install: --dry-run plan + real run + placeholder substitution"
 mkdir -p "$TMP/fresh"

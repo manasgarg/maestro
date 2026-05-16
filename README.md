@@ -43,6 +43,8 @@ To install:
 
 **Already-mature repos:** if the target repo already had `pull_request_template.md`, `ISSUE_TEMPLATE/maestro-direction.md`, or any `.github/workflows/maestro-*.yml`, those files are replaced wholesale — Maestro's rollout is absolute. If you want to keep informal house rules from the prior structure, run `/maestro-intake` in a Claude Code session in that repo before merging the install PR (or close the PR and re-dispatch after intake — the install workflow auto-closes the previous install PR on each dispatch). Intake reads the existing artifacts and extracts durable conventions into local learnings (or queues them as candidate improvements to Maestro itself).
 
+**Your own test runner:** if your repo already has `tools/run_tests.sh`, install leaves it alone — your runner wins. If not, install writes Maestro's default one (which discovers executable files under `tests/test_*` and exits 0 cleanly when there are no tests yet, so fresh satellites get a green CI immediately).
+
 **Branch-protected `main`:** if your satellite enforces signed commits on every branch (some org-wide rule sets do), the install push will be rejected because the bot's commit is unsigned. The workflow surfaces a friendly error in that case; the workaround is to run `tools/install_satellite.py` locally and push the install branch yourself with your own signed commit.
 
 **Re-dispatching:** running Maestro Install again with the same ref against an already-installed satellite is a no-op (with a clear notice). Use it to confirm the satellite is healthy or to re-create the labels if they were ever deleted.

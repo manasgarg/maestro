@@ -156,6 +156,7 @@ jobs:
           - Adds four workflow shims under \`.github/workflows/\` that call Maestro's reusable workflows at \`${MAESTRO_REF}\`.
           - Adds the Maestro PR template and direction-issue template under \`.github/\`.
           - Pins the version in \`.maestro/version\`.
+          - If your repo doesn't already have a \`tools/run_tests.sh\`, adds Maestro's default one. (Maestro's reusable CI workflow calls it on every PR push.) If you already have your own \`tools/run_tests.sh\`, it's left untouched — your runner wins.
 
           The four Maestro labels (\`maestro:direction\`, \`maestro:awaiting-human\`, \`maestro:ai-proposed\`, \`maestro:done\`) have already been created in this repo — no separate bootstrap step needed.
 

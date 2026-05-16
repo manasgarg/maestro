@@ -43,3 +43,18 @@ No action needed.
 **Deliberately not addressed.** Intentional design: Maestro takes responsibility for exactly the files in `MAESTRO_MANAGED`. A satellite-owned `maestro-housekeeping.yml` outside that list belongs to the satellite, not to Maestro, and Maestro doesn't have authority to replace it. The `maestro-*` prefix is not formally reserved; if a future direction calls for that, the change is one constant in `install_satellite.py`.
 
 Codex-style review surface for PR 2 — adversarial pass thread: `.maestro/evidence/14/adversarial-review-pr2.md`.
+
+## Follow-up — Codex finding on PR 2 itself: fresh satellites get a red CI
+
+After this PR opened, ChatGPT Codex flagged a real issue not surfaced by the initial adversarial pass: the satellite scaffold installs `maestro-ci.yml`, which forwards to Maestro's reusable CI workflow that calls `tools/run_tests.sh` in the calling repo. A fresh satellite has no `tools/run_tests.sh`, so every PR after install gets a permanently red Maestro CI check.
+
+**Fixed.** Added `tools/run_tests.sh` to the satellite template (vendored from Maestro's own runner — generic, exits 0 cleanly when there are no tests yet) and added a `MAESTRO_DEFAULTS` policy to `tools/install_satellite.py`: files in this tuple are scaffolded *only if missing*. The classifier returns `keep-existing` instead of `replace` when a default-policy file already exists in the satellite, so a satellite with its own custom test runner keeps it untouched. The install script also now preserves the executable bit from the template, which matters for shell scripts.
+
+Test updates:
+- `test_satellite_template.sh`: added `tools/run_tests.sh` to the required-files list and asserts it's executable.
+- `test_install_satellite_fresh.sh`: asserts `tools/run_tests.sh` exists after install on a fresh repo and is executable.
+- `test_install_satellite_mature.sh` section 6 (new): seeds the target with its own `tools/run_tests.sh` containing a `SATELLITE-OWNED RUNNER` marker, runs install, asserts the install log says `KEEP-EXISTING` and the marker survives — locking the "satellite wins for default-policy files" rule against regression.
+
+Documentation updates: README's "Install Maestro on another repo" section now has a `**Your own test runner**` footnote, and the install workflow's PR body explains the behavior.
+
+Codex's review thread on PR 2: https://github.com/manasgarg/maestro/pull/16#discussion_r3252926457

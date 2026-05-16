@@ -75,3 +75,25 @@ grep -q '@v0.1.0' "$target/.github/workflows/maestro-implement.yml" \
   || fail "post-install implementer shim is not pinned to v0.1.0."
 grep -q 'Observable change' "$target/.github/pull_request_template.md" \
   || fail "post-install PR template does not contain canonical Maestro content."
+
+# --- 6. A satellite's own tools/run_tests.sh is preserved by install
+#       (it's a "default" file — Maestro defers to the satellite's
+#       version if one exists). Locks the fix for the Codex finding
+#       on PR #16 that fresh satellites without a runner would get a
+#       permanently red Maestro CI; the satellite's existing custom
+#       runner must survive install untouched. ---
+target2="$(mktemp -d)"
+trap 'rm -rf "$target" "$target2"' EXIT
+mkdir -p "$target2/tools"
+printf 'SATELLITE-OWNED RUNNER\n' > "$target2/tools/run_tests.sh"
+chmod +x "$target2/tools/run_tests.sh"
+python3 "$repo_root/tools/install_satellite.py" \
+  --version v0.1.0 \
+  --target "$target2" \
+  --source "$repo_root/tools/satellite-template" \
+  > "$target2/install.log" 2>&1 \
+  || fail "install exited non-zero against a satellite with its own run_tests.sh:\n$(cat "$target2/install.log")"
+grep -q '^  KEEP-EXISTING.*tools/run_tests\.sh' "$target2/install.log" \
+  || fail "install did not KEEP-EXISTING the satellite's existing tools/run_tests.sh; that file is satellite-owned."
+grep -q 'SATELLITE-OWNED RUNNER' "$target2/tools/run_tests.sh" \
+  || fail "install overwrote the satellite's existing tools/run_tests.sh; it should be preserved (satellite wins for default-policy files)."

@@ -48,21 +48,40 @@ MAESTRO_MANAGED = (
     ".maestro/version",
 )
 
+# Files Maestro ships as a sensible default but the satellite may override
+# with its own. Install writes these only if they don't already exist; if
+# they do, the satellite's version wins. This is for files that fill in a
+# Maestro convention but whose content is satellite-specific in real-world
+# use (the canonical example is `tools/run_tests.sh` — Maestro's reusable
+# CI workflow calls it, but many satellites have their own elaborate test
+# runner they want to keep).
+MAESTRO_DEFAULTS = (
+    "tools/run_tests.sh",
+)
 
-def template_files(template_dir: Path) -> list[tuple[str, Path]]:
-    """Return [(rel_path, abs_src_path), ...] for files in the template.
 
-    Order matches MAESTRO_MANAGED so the install plan is deterministic.
-    Raises FileNotFoundError if the template is missing an expected file.
+def template_files(template_dir: Path) -> list[tuple[str, Path, str]]:
+    """Return [(rel_path, abs_src_path, policy), ...] for files in the template.
+
+    Order is MAESTRO_MANAGED then MAESTRO_DEFAULTS so the install plan is
+    deterministic and managed files appear first. Raises FileNotFoundError
+    if the template is missing an expected file. `policy` is "managed" or
+    "default".
     """
-    files = []
-    missing = []
+    files: list[tuple[str, Path, str]] = []
+    missing: list[str] = []
     for rel in MAESTRO_MANAGED:
         src = template_dir / rel
         if not src.is_file():
             missing.append(rel)
         else:
-            files.append((rel, src))
+            files.append((rel, src, "managed"))
+    for rel in MAESTRO_DEFAULTS:
+        src = template_dir / rel
+        if not src.is_file():
+            missing.append(rel)
+        else:
+            files.append((rel, src, "default"))
     if missing:
         raise FileNotFoundError(
             f"template directory {template_dir} is missing expected file(s): "
@@ -71,9 +90,18 @@ def template_files(template_dir: Path) -> list[tuple[str, Path]]:
     return files
 
 
-def classify(target: Path, rel_path: str) -> str:
-    """Return 'replace' if the file exists in the satellite, else 'write'."""
-    return "replace" if (target / rel_path).exists() else "write"
+def classify(target: Path, rel_path: str, policy: str) -> str:
+    """Return the action to take for a template file.
+
+    For policy='managed': "replace" if the file exists in the satellite, else "write".
+    For policy='default': "keep-existing" if the file exists (satellite wins),
+                          else "write".
+    """
+    exists = (target / rel_path).exists()
+    if policy == "managed":
+        return "replace" if exists else "write"
+    # policy == "default"
+    return "keep-existing" if exists else "write"
 
 
 def install(
@@ -84,26 +112,41 @@ def install(
 ) -> list[tuple[str, str]]:
     """Install the scaffold. Returns [(action, rel_path), ...] for printing.
 
-    action ∈ {"write", "replace", "would-write", "would-replace"}.
+    action ∈ {"write", "replace", "keep-existing", "would-<one of those>"}.
     """
     files = template_files(template_dir)
     actions: list[tuple[str, str]] = []
-    for rel, src in files:
-        action = classify(target, rel)
+    for rel, src, policy in files:
+        action = classify(target, rel, policy)
         if dry_run:
             actions.append((f"would-{action}", rel))
+            continue
+        if action == "keep-existing":
+            # Satellite already has its own copy of a default-policy file;
+            # do not overwrite. The satellite's version wins.
+            actions.append((action, rel))
             continue
         content = src.read_text(encoding="utf-8")
         content = content.replace(VERSION_PLACEHOLDER, version)
         dest = target / rel
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_text(content, encoding="utf-8")
+        # Preserve executable bit from the template (matters for shell
+        # scripts like tools/run_tests.sh).
+        src_mode = src.stat().st_mode
+        if src_mode & 0o111:
+            dest.chmod(dest.stat().st_mode | 0o755)
         actions.append((action, rel))
     return actions
 
 
 def is_mature(target: Path) -> list[str]:
-    """Return the list of Maestro-managed paths that already exist in target."""
+    """Return the list of Maestro-managed paths that already exist in target.
+
+    Only counts MAESTRO_MANAGED files — MAESTRO_DEFAULTS files (like
+    tools/run_tests.sh) are explicitly *not* a sign of maturity, since
+    Maestro defers to the satellite's version of those.
+    """
     return [rel for rel in MAESTRO_MANAGED if (target / rel).exists()]
 
 
