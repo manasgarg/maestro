@@ -1,0 +1,184 @@
+# Maestro Install — satellite-side workflow.
+#
+# Copy this file into your repo as `.github/workflows/maestro-install.yml`,
+# commit it, push, then go to the Actions tab and run "Maestro Install".
+# You'll get an "Install Maestro" PR in your repo with the scaffold; merge
+# that and the loop is live. From then on you receive bump PRs from Maestro
+# automatically whenever a new version ships.
+#
+# This is the only manual step. After install you never touch Maestro
+# internals directly — version bumps arrive as reviewable PRs.
+
+name: Maestro Install
+
+on:
+  workflow_dispatch:
+    inputs:
+      maestro_ref:
+        description: "Maestro version to pin to (a tag like v0.1.0, or 'main' for the bleeding edge)."
+        required: true
+        type: string
+        default: "main"
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  install:
+    # No author_association gate: workflow_dispatch is already restricted
+    # by GitHub to users with write access to this repo, which is exactly
+    # who should be allowed to install Maestro and open the install PR.
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out this repo (the satellite)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check out Maestro at the pinned ref
+        uses: actions/checkout@v4
+        with:
+          repository: manasgarg/maestro
+          ref: ${{ inputs.maestro_ref }}
+          path: .maestro-src
+
+      - name: Plan the install
+        run: |
+          python3 .maestro-src/tools/install_satellite.py \
+            --version "${{ inputs.maestro_ref }}" \
+            --target . \
+            --dry-run \
+            | tee "$RUNNER_TEMP/install-plan.txt"
+
+      - name: Run the install
+        run: |
+          python3 .maestro-src/tools/install_satellite.py \
+            --version "${{ inputs.maestro_ref }}" \
+            --target .
+          # Remove the sidecar checkout so it doesn't end up in the install PR.
+          rm -rf .maestro-src
+
+      - name: Detect no-op (already pinned to this ref)
+        id: noop
+        run: |
+          # Stage everything so we can ask git whether anything would change.
+          # The script wrote into the working tree only; nothing is staged
+          # yet. If the staged diff is empty, the satellite is already
+          # pinned to this ref byte-for-byte — exit success with a notice.
+          git add -A
+          if git diff --cached --quiet; then
+            echo "is_noop=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_noop=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create the four Maestro labels
+        # Run regardless of no-op — if labels were ever deleted, a no-op
+        # install should re-create them. createLabel returns 422 if a
+        # label with the same name already exists; we treat that as OK.
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const labels = [
+              { name: 'maestro:direction',      color: '0E8A16', description: 'A direction filed for Maestro to implement.' },
+              { name: 'maestro:awaiting-human', color: 'FBCA04', description: 'Maestro is blocked on a human answer.' },
+              { name: 'maestro:ai-proposed',    color: 'C5DEF5', description: 'Direction proposed by an AI agent; needs human acknowledgment.' },
+              { name: 'maestro:done',           color: '5319E7', description: 'Direction has been completed and receipted.' },
+            ];
+            for (const label of labels) {
+              try {
+                await github.rest.issues.createLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  ...label,
+                });
+                core.info(`Created label: ${label.name}`);
+              } catch (e) {
+                if (e.status === 422) {
+                  core.info(`Label already exists: ${label.name}`);
+                } else {
+                  throw e;
+                }
+              }
+            }
+
+      - name: No-op notice
+        if: steps.noop.outputs.is_noop == 'true'
+        run: |
+          echo "::notice::Satellite is already pinned to ${{ inputs.maestro_ref }} — nothing to install. (This is success, not a failure.) Labels were checked/created above."
+
+      - name: Close any superseded install PRs
+        if: steps.noop.outputs.is_noop != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eu
+          OPEN_PRS=$(gh pr list --state open --search "head:maestro/install-" --json number,headRefName -q '.[] | "\(.number)\t\(.headRefName)"')
+          if [ -n "$OPEN_PRS" ]; then
+            echo "Closing previous open install PRs (superseded by this dispatch):"
+            while IFS=$'\t' read -r num head; do
+              echo "  #$num ($head)"
+              gh pr close "$num" --comment "Superseded by a newer Maestro Install dispatch (closing automatically so only the latest install PR is in flight)." --delete-branch
+            done <<< "$OPEN_PRS"
+          fi
+
+      - name: Open the install PR
+        if: steps.noop.outputs.is_noop != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MAESTRO_REF: ${{ inputs.maestro_ref }}
+        run: |
+          set -eu
+          BRANCH="maestro/install-${MAESTRO_REF}-$(date -u +%Y%m%d%H%M%S)"
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          # Files are already staged from the no-op detection step.
+          git commit -m "Install Maestro (pinned to ${MAESTRO_REF})"
+
+          if ! git push -u origin "$BRANCH" 2>&1 | tee "$RUNNER_TEMP/push.log"; then
+            if grep -qiE 'protected branch|signature required|signed commits' "$RUNNER_TEMP/push.log"; then
+              echo "::error::Push rejected by branch protection. Maestro's install bot commits unsigned. Either (a) allow unsigned commits on the 'maestro/install-*' branch namespace, or (b) install Maestro by running tools/install_satellite.py locally and pushing with your own signed commit."
+              exit 1
+            fi
+            echo "::error::git push failed — see the push log above."
+            exit 1
+          fi
+
+          BODY_FILE="$RUNNER_TEMP/pr-body.md"
+          cat > "$BODY_FILE" <<EOF
+          Installs the Maestro scaffold pinned to **${MAESTRO_REF}**. After this PR merges, filing a \`maestro:direction\` issue triggers the full Maestro loop in this repo.
+
+          ## What this PR does
+
+          - Adds four workflow shims under \`.github/workflows/\` that call Maestro's reusable workflows at \`${MAESTRO_REF}\`.
+          - Adds the Maestro PR template and direction-issue template under \`.github/\`.
+          - Pins the version in \`.maestro/version\`.
+          - If your repo doesn't already have a \`tools/run_tests.sh\`, adds Maestro's default one. (Maestro's reusable CI workflow calls it on every PR push.) If you already have your own \`tools/run_tests.sh\`, it's left untouched — your runner wins.
+
+          The four Maestro labels (\`maestro:direction\`, \`maestro:awaiting-human\`, \`maestro:ai-proposed\`, \`maestro:done\`) have already been created in this repo — no separate bootstrap step needed.
+
+          If any of those files already existed in this repo, they were replaced wholesale — Maestro's rollout is absolute. If you had informal process conventions in the prior files that you want to keep, **close this PR**, run \`/maestro-intake\` in a Claude Code session in this repo to extract those conventions into learnings, then re-run the Maestro Install workflow. (The previous install PR is closed automatically when you re-dispatch.)
+
+          ## Install plan that was executed
+
+          \`\`\`
+          $(cat "$RUNNER_TEMP/install-plan.txt")
+          \`\`\`
+
+          ## Before merging
+
+          Add a repo secret \`CLAUDE_CODE_OAUTH_TOKEN\`. Easiest way: in any Claude Code session, run \`/install-github-app\` and it walks you through both the app install and the secret.
+
+          ## After merging
+
+          File a \`maestro:direction\` issue. The Implementer posts a proposal within ~5 minutes. (Labels are already in place — no bootstrap step required.)
+          EOF
+
+          gh pr create \
+            --title "Install Maestro (${MAESTRO_REF})" \
+            --body-file "$BODY_FILE" \
+            --head "$BRANCH"
+          # gh pr create defaults --base to the repo's default branch.

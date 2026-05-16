@@ -1,0 +1,75 @@
+
+=== 1. Satellite scaffold has all eight files (7 managed + 1 default) ===
+  OK  .github/workflows/maestro-implement.yml
+  OK  .github/workflows/maestro-review.yml
+  OK  .github/workflows/maestro-ci.yml
+  OK  .github/workflows/maestro-learn.yml
+  OK  .github/pull_request_template.md
+  OK  .github/ISSUE_TEMPLATE/maestro-direction.md
+  OK  .maestro/version
+  OK  tools/run_tests.sh
+  OK  tools/run_tests.sh is executable
+
+=== 2. Fresh install: --dry-run plan + real run + placeholder substitution ===
+  Install plan:
+    WOULD-WRITE     .github/workflows/maestro-implement.yml
+    WOULD-WRITE     .github/workflows/maestro-review.yml
+    WOULD-WRITE     .github/workflows/maestro-ci.yml
+    WOULD-WRITE     .github/workflows/maestro-learn.yml
+    WOULD-WRITE     .github/pull_request_template.md
+    WOULD-WRITE     .github/ISSUE_TEMPLATE/maestro-direction.md
+    WOULD-WRITE     .maestro/version
+    WOULD-WRITE     tools/run_tests.sh
+  
+  Would install 8 file(s) into /tmp/tmp.tlyFY9lFPp/fresh. Maestro version pinned: v9.9.9-test.
+
+  Installed:
+    WRITE           .github/workflows/maestro-implement.yml
+    WRITE           .github/workflows/maestro-review.yml
+    WRITE           .github/workflows/maestro-ci.yml
+    WRITE           .github/workflows/maestro-learn.yml
+    WRITE           .github/pull_request_template.md
+    WRITE           .github/ISSUE_TEMPLATE/maestro-direction.md
+    WRITE           .maestro/version
+    WRITE           tools/run_tests.sh
+  
+  Installed 8 file(s) into /tmp/tmp.tlyFY9lFPp/fresh. Maestro version pinned: v9.9.9-test.
+
+  OK  no leftover __MAESTRO_VERSION__ placeholders
+  OK  pinned ref substituted into shim and .maestro/version
+
+=== 3. Mature-repo install: detection, /maestro-intake pointer, wholesale replace ===
+  Mature repo detected — 2 Maestro-managed file(s) already present and will be replaced wholesale (rollout is absolute per issue #14 AC 6):
+    EXISTING  .github/workflows/maestro-implement.yml
+    EXISTING  .github/pull_request_template.md
+  If this repo has informal process conventions you want to keep, run `/maestro-intake` in a Claude Code session in this repo BEFORE merging the install PR. It extracts those conventions into learnings (and candidate Maestro improvements) that survive the replacement.
+  
+  Installed:
+    REPLACE         .github/workflows/maestro-implement.yml
+    WRITE           .github/workflows/maestro-review.yml
+    WRITE           .github/workflows/maestro-ci.yml
+    WRITE           .github/workflows/maestro-learn.yml
+    REPLACE         .github/pull_request_template.md
+    WRITE           .github/ISSUE_TEMPLATE/maestro-direction.md
+    WRITE           .maestro/version
+    WRITE           tools/run_tests.sh
+  
+  Installed 8 file(s) into /tmp/tmp.tlyFY9lFPp/mature. Maestro version pinned: v0.1.0.
+
+  OK  prior PR template replaced
+  OK  prior implementer shim replaced with canonical Maestro content pinned to v0.1.0
+
+=== 4. Full PR 2 test suite (via the project's test runner) ===
+PASS tests/test_adversarial_pass_convention.sh
+PASS tests/test_bug_fix_test_first_convention.sh
+PASS tests/test_ci_gate_workflow.sh
+PASS tests/test_demo_convention.sh
+PASS tests/test_install_satellite_fresh.sh
+PASS tests/test_install_satellite_mature.sh
+PASS tests/test_pre_mortem_convention.sh
+PASS tests/test_reusable_workflows.sh
+PASS tests/test_revert_evidence_convention.sh
+PASS tests/test_satellite_template.sh
+PASS tests/test_test_per_criterion_convention.sh
+
+Summary: 11 passed, 0 failed (of 11 tests).

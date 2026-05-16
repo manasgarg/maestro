@@ -1,0 +1,20 @@
+name: Maestro Reviewer
+
+# Satellite shim. Forwards Maestro Reviewer PR events to the reusable
+# workflow in manasgarg/maestro at the pinned version.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  review:
+    uses: manasgarg/maestro/.github/workflows/maestro-review.yml@__MAESTRO_VERSION__
+    secrets: inherit
+    with:
+      maestro_ref: __MAESTRO_VERSION__

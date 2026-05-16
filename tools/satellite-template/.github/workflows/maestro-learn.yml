@@ -1,0 +1,32 @@
+name: Maestro Learn (scheduled)
+
+# Satellite shim. Forwards Maestro Synthesizer events (daily cron +
+# manual dispatch) to the reusable workflow at the pinned version.
+
+on:
+  schedule:
+    - cron: '0 9 * * *'
+  workflow_dispatch:
+    inputs:
+      since:
+        description: 'Window start (ISO-8601 UTC). Leave blank to use .last-synthesized-at.'
+        required: false
+        default: ''
+      until:
+        description: 'Window end (ISO-8601 UTC). Leave blank to use now.'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+  issues: read
+  pull-requests: write
+
+jobs:
+  learn:
+    uses: manasgarg/maestro/.github/workflows/maestro-learn.yml@__MAESTRO_VERSION__
+    secrets: inherit
+    with:
+      maestro_ref: __MAESTRO_VERSION__
+      since: ${{ inputs.since }}
+      until: ${{ inputs.until }}
