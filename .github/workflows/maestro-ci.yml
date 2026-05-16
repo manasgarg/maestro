@@ -1,0 +1,31 @@
+name: Maestro CI
+
+# The automated gate. Runs the repo's test suite on every PR push.
+# Failure turns this check red. Branch protection (tracked in #12) is what
+# makes a red check actually block merge — this workflow only produces the
+# signal.
+#
+# Unlike the Implementer / Reviewer / Synthesizer workflows, this one does
+# NOT consume any Anthropic credits and is NOT gated on author_association.
+# It runs on every PR (including fork PRs) so the gate is meaningful for
+# contributors as well as owners.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run tests
+        run: tools/run_tests.sh
