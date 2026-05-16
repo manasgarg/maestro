@@ -42,6 +42,9 @@ on:
       CLAUDE_CODE_OAUTH_TOKEN:
         description: "Claude Code OAuth token for the calling repo. Use `secrets: inherit` in the satellite shim."
         required: true
+      MAESTRO_UPSTREAM_PAT:
+        description: "Optional. PAT with `contents: write` + `pull-requests: write` on manasgarg/maestro, used by tools/upstream_learning.sh when the synthesizer routes a workflow-level learning upstream from a satellite. Without it, workflow-level candidates are skipped with a notice (the next interactive /learn run can route them)."
+        required: false
 
 permissions:
   contents: write
@@ -176,6 +179,14 @@ jobs:
         uses: anthropics/claude-code-base-action@beta
         env:
           GITHUB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # MAESTRO_UPSTREAM_PAT is consumed by tools/upstream_learning.sh
+          # (called by the synthesizer for workflow-level candidates in
+          # a satellite). When unset, the script's gh-auth-status check
+          # fails fast with a clear message and the synthesizer skips
+          # the upstream routing for that candidate. Setting it here as
+          # GH_TOKEN means the script picks it up without needing any
+          # extra config.
+          GH_TOKEN: ${{ secrets.MAESTRO_UPSTREAM_PAT }}
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt_file: ${{ env.PROMPT_PATH }}

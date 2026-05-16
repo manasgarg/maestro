@@ -12,6 +12,22 @@ You may always read `DESIGN.md` for broader context.
 4. **Read overlapping-tag learnings first.** Before writing, check existing files with overlapping tags. If the candidate duplicates one, skip. If it refines one, write a new file with `supersedes:` pointing at the old.
 5. **Plain markdown the human can edit or delete.** No special encoding. The human is in charge of the convention; you are an assistant.
 
+## Classification (binding when running in a satellite)
+
+When the invocation context says you're running inside a **satellite** (i.e., the working directory is a satellite repo, not Maestro itself — typically the case in Mode B `/learn`, Mode D `/learn-recent`, or a scheduled `maestro-learn.yml` run in a satellite), classify each learning you'd write as one of:
+
+- **workflow-level** — a durable insight about the Maestro process itself: workflows, prompts, agent behavior, evidence conventions, CI gating, GitHub event quirks, prompt-engineering. Useful to a future session in *any* satellite. Tag overlap with `{maestro, github-actions, claude-code, evidence, prompt-engineering, synthesizer, implementer, reviewer, claude-code-base-action}` is the rough signal.
+- **repo-specific** — useful only inside this satellite (the domain's own conventions, language/framework quirks, repo-specific testing patterns, deployment process). Other satellites don't need it.
+
+For each classification:
+
+- **Repo-specific:** write the file under `.maestro/learnings/` in the satellite, regenerate the index, commit directly to the current branch with `learning: <slug>`. Same as Maestro-side behavior. (Branch guard from `prompts/intake.md` applies here too — don't commit straight to the satellite's default branch; create a `maestro-learnings-<date>` branch and ask the human to merge as a PR.)
+- **Workflow-level:** do NOT commit the file in the satellite. Instead, run `tools/upstream_learning.sh <path-to-the-just-written-temp-file>` (the script lives in Maestro at the pinned ref — in a satellite workflow run it's at `.maestro-src/tools/upstream_learning.sh`; in an interactive session, fetch it via `curl -fsSL https://raw.githubusercontent.com/manasgarg/maestro/$(cat .maestro/version)/tools/upstream_learning.sh -o /tmp/upstream_learning.sh && bash /tmp/upstream_learning.sh <path>`). The script clones Maestro, drops the file under `.maestro/learnings/`, regenerates the index, and opens an "Upstream learning: <slug>" PR in `manasgarg/maestro`. Print the PR URL in your output. Skip the local-commit step in the satellite — the satellite already has the learning's source in its history.
+
+When you classify a candidate as workflow-level, **first check Maestro's existing learnings** to avoid opening a duplicate PR. The cheapest check: `curl -fsSL https://api.github.com/repos/manasgarg/maestro/contents/.maestro/learnings | jq -r '.[].name'` lists existing filenames; for slug overlap, skip. For tag overlap with refinement intent, supersede via `supersedes:` in the frontmatter (the script's PR-body still applies).
+
+When you're running inside Maestro itself (Mode A scheduled batch in the Maestro repo, or any Maestro-side invocation), there is no upstream destination — every learning is local. Behavior is unchanged from prior versions of this prompt.
+
 ## What IS a learning
 
 A learning is a durable, reusable insight that will save a future session real work. Examples:

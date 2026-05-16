@@ -1,0 +1,37 @@
+
+=== 1. Helper script exists, is executable, validates inputs ===
+  OK  tools/upstream_learning.sh exists and is executable
+  OK  prints usage when called with no args
+  OK  errors on missing file
+  OK  rejects files without YAML frontmatter
+
+=== 2. Synthesizer prompt classifies workflow vs repo and routes via the helper ===
+  OK  classification step present
+  OK  references the helper script
+
+=== 3. Intake prompt was migrated off the .maestro/upstream-candidates/ staging ===
+  OK  intake references the helper
+  OK  no stale references to .maestro/upstream-candidates/
+
+=== 4. Reusable maestro-learn workflow forwards MAESTRO_UPSTREAM_PAT to gh ===
+  OK  declared as a workflow_call secret
+  OK  declared optional (Maestro-side runs don't need it)
+  OK  forwarded to the synthesizer step as GH_TOKEN
+
+=== 5. Full test suite ===
+PASS tests/test_adversarial_pass_convention.sh
+PASS tests/test_bug_fix_test_first_convention.sh
+PASS tests/test_ci_gate_workflow.sh
+PASS tests/test_demo_convention.sh
+PASS tests/test_install_satellite_fresh.sh
+PASS tests/test_install_satellite_mature.sh
+PASS tests/test_pre_mortem_convention.sh
+PASS tests/test_reusable_workflows.sh
+PASS tests/test_revert_evidence_convention.sh
+PASS tests/test_rollout_workflow.sh
+PASS tests/test_satellite_template.sh
+PASS tests/test_satellites_registry.sh
+PASS tests/test_test_per_criterion_convention.sh
+PASS tests/test_upstream_learning_flow.sh
+
+Summary: 14 passed, 0 failed (of 14 tests).
