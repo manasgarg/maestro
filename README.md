@@ -12,8 +12,13 @@ Maestro's Implementer will reply within ~5 minutes with a proposal: decompositio
 
 - **A proposal** as a comment on your issue.
 - **Clarifying questions** if needed — answer by commenting; the `maestro:awaiting-human` label tracks when you're blocking.
-- **Pull requests** linked to your issue, one per atomic change. Each PR shows what observable change it makes and the evidence.
-- **AI review** on each PR within ~5 minutes — advisory only, you decide what merges.
+- **Pull requests** linked to your issue, one per atomic change. Each PR ships:
+  - a **runbook** (narrated demo you can read top-to-bottom without running anything),
+  - a **verify.sh** with one named assertion per acceptance criterion,
+  - a **test-catches-it.log** proving the assertions aren't vacuous,
+  - and — for non-atomic direction — a pre-mortem, a counterfactual run, and the output of an adversarial Bug Hunter pass.
+- **CI runs on every PR** and blocks merge on failure. This is what protects landed criteria from future regressions.
+- **AI review** on each PR within ~5 minutes — advisory on judgement, blocking on the criterion-↔-test-↔-evidence binding.
 - **A receipt** on your original issue when the work is done: observable change + evidence.
 
 ## Approving a proposal

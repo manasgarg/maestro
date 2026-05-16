@@ -1,0 +1,111 @@
+=== Bug Hunter pass ===
+Diff scope: 11 files (~370 lines added / ~40 lines removed)
+Criteria considered: 9 families (per the proposal-equivalent in the runbook)
+Reviewed: DESIGN.md, README.md, .maestro/README.md, prompts/implementer.md, prompts/reviewer.md, prompts/bug-hunter.md, .github/pull_request_template.md, .github/workflows/maestro-ci.yml, .maestro/schemas/tasks.schema.json, .maestro/scripts/validate_tasks_jsonl.py, .maestro/scripts/validate_evidence.py, .maestro/evidence/testing-validation/verify.sh
+
+## Findings
+
+[high] Legacy verify.sh scripts will fail under the new CI gate
+  Where: .github/workflows/maestro-ci.yml (the "Run all verify.sh scripts" step) +
+         .maestro/evidence/2/verify.sh + .maestro/evidence/3/verify.sh
+  How it fails:
+    The CI step iterates `.maestro/evidence/*/verify.sh` and fails the job if any
+    returns non-zero. The legacy script in evidence/2/ (a) requires PyYAML for the
+    "Workflow YAML parses" check, and PyYAML is not installed in the new CI job,
+    and (b) greps reviewer.md for the literal string "Audit evidence against
+    acceptance criteria", which this PR rewrites to "Audit the criterion-↔-test-↔-
+    evidence binding". Both produce `miss` entries and the script exits 1.
+    Concretely: on this very PR, CI would go red on principle-8 enforcement.
+  Suggested fix: make the CI step skip directories that contain a LEGACY marker.
+  Status: ADDRESSED in this PR (CI step now skips LEGACY dirs).
+
+[high] jsonschema pin too loose; Draft202012Validator requires >=4.18
+  Where: .github/workflows/maestro-ci.yml ("Install jsonschema" step) +
+         .maestro/scripts/validate_tasks_jsonl.py
+  How it fails:
+    `pip install 'jsonschema>=4.0,<5.0'` permits 4.0..4.17, but
+    Draft202012Validator was added in 4.18. If pip's resolver picks an older
+    cached wheel, the validator import fails and CI errors with an unhelpful
+    AttributeError instead of a schema violation.
+  Suggested fix: bump the pin to `jsonschema>=4.18,<5.0`.
+  Status: ADDRESSED in this PR.
+
+[medium] "Failing-test-first for bug fixes" is unenforceable by CI
+  Where: prompts/implementer.md (principle 8, last paragraph)
+  How it fails:
+    The rule says bug-fix PRs commit the failing assertion in a separate commit
+    before the fix. CI sees only the merge state, not per-commit state. A
+    non-compliant Implementer ships fix+test in one commit and CI passes. The
+    Reviewer prompt doesn't audit commit order.
+  Suggested fix: add a one-line check to reviewer.md (audit commit history for
+    bug-fix PRs). Out of scope here — filed below as a follow-up.
+  Status: DISCLOSED in pre-mortem.md (failure 5). Not blocking for v0.
+
+[medium] PR template's "non-atomic only" sections clutter atomic PRs
+  Where: .github/pull_request_template.md
+  How it fails:
+    GitHub does not conditionally hide template sections. Implementers must
+    manually delete pre-mortem / counterfactual / bug-hunter sections for atomic
+    PRs. A sloppy Implementer leaves them in pointing at non-existent paths;
+    a Reviewer wastes a comment on it. Observable consequence: noisier PR
+    descriptions, not a correctness bug.
+  Suggested fix: accept the clutter for v0; the comment instructions say
+    "Delete this section for atomic PRs." Could revisit with two templates.
+  Status: DISCLOSED — accepted for v0.
+
+[medium] `actions/checkout@v4` with fetch-depth: 0 is heavyweight
+  Where: .github/workflows/maestro-ci.yml
+  How it fails:
+    Full clone for every CI run; on a large repo this would be slow. For
+    Maestro (tiny) it's fine but worth flagging as a non-default choice. The
+    reason it's there: future verify.sh scripts may want git history.
+  Status: DISCLOSED — kept intentionally for verify.sh history access.
+
+[low] `validate_evidence.py` accepts an empty LEGACY file
+  Where: .maestro/scripts/validate_evidence.py
+  How it fails:
+    A zero-byte LEGACY file passes validation with "(no justification)" warning.
+    Intent is to record why a directory predates principle 8. Future agent could
+    drop empty LEGACY markers to silence the check.
+  Suggested fix: require LEGACY files to be non-empty.
+  Status: NOT FIXED — warn-vs-fail is fine for v0; the WARN output makes drift
+    visible in CI logs.
+
+[low] Schema rejects sub-second timestamps
+  Where: .maestro/schemas/tasks.schema.json (`completed_at` pattern)
+  How it fails:
+    Pattern is `^[0-9]{4}-...T...:...Z$` — second precision only. A future
+    receipt that uses `.123Z` will fail validation. Intentional (keeps history
+    readable), but a future surprise.
+  Status: DISCLOSED — pinned intentionally; can relax if it bites.
+
+[low] CI installs `actionlint` over the network on every run
+  Where: .github/workflows/maestro-ci.yml ("Install actionlint" step)
+  How it fails:
+    `curl | bash` against raw.githubusercontent.com. A network blip fails CI
+    until retried. Could be pinned via apt or cached. Acceptable for v0
+    given GitHub Actions has stable connectivity to itself.
+  Status: DISCLOSED — acceptable for v0.
+
+## Ruled out
+
+- **Schema injection / arbitrary code via tasks.jsonl** — schema validator is
+  data-only; no eval path.
+- **verify.sh shell injection** — script only uses string literals against
+  static file paths; no untrusted input reaches the shell.
+- **Race in CI** — `pull_request` runs are per-PR; no shared state.
+- **YAML deserialization** — actionlint and PyYAML both safe-load.
+- **Credentials in CI logs** — the CI workflow has `permissions: contents: read`
+  only; no token in env. The Implementer/Reviewer workflows that do hold the
+  OAuth token are unchanged.
+- **Bypassing the gate by skipping CI** — branch protection (configured at the
+  repo level, not in this PR) is what makes the gate binding. CI exists; the
+  human still needs to require it in branch settings. Disclosed in the runbook.
+
+## Follow-up direction worth filing
+
+1. Reviewer prompt: audit commit order on bug-fix PRs (closes the medium-severity
+   gap noted above).
+2. Branch protection setup as a `[human]` issue, analogous to issue #5
+   (install Claude GitHub App). The CI gate is only as binding as the branch
+   protection requiring it to pass.

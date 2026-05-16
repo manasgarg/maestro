@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/manasgarg/maestro/.maestro/schemas/tasks.schema.json",
+  "title": "Maestro tasks.jsonl row",
+  "description": "Schema for a single line of .maestro/tasks.jsonl. Each completed (or abandoned) direction appends one object matching this schema.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["issue", "title", "completed_at", "summary"],
+  "properties": {
+    "issue": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "GitHub issue number for the direction."
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Direction title as the human filed it."
+    },
+    "completed_at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$",
+      "description": "UTC timestamp in ISO-8601, second precision, Z suffix."
+    },
+    "prs": {
+      "type": "array",
+      "items": { "type": "integer", "minimum": 1 },
+      "uniqueItems": true,
+      "description": "PRs that comprised the direction. Omitted or empty for abandoned attempts."
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1,
+      "description": "One-line observable change in the human's vocabulary."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["completed", "abandoned"],
+      "description": "Defaults to completed when absent."
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Required when status=abandoned; explains what was tried and what was observed."
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "const": "abandoned" } }, "required": ["status"] },
+      "then": { "required": ["reason"] }
+    }
+  ]
+}

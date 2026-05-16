@@ -24,13 +24,16 @@ These principles govern every Implementer and Reviewer action. They were set by 
 
 7. **Every change produces observable evidence — and the Implementer produces it.** Acceptance criteria and evidence share a vocabulary. The Implementer runs the verification themselves and records the run (script output, screenshots, captured commands, test logs, measurements) under `.maestro/evidence/<issue-number>/`. The PR's Evidence section cites the recorded artifact, not instructions the human must follow. A criterion the Implementer genuinely cannot verify must be flagged with the reason. Pure refactors produce evidence of no regression. Failed attempts also produce a receipt explaining what was tried and what was observed.
 
+8. **Each acceptance criterion binds three artifacts: a runbook step, an automated test, and an evidence file.** The criterion's text, the test's name, and the runbook step share a single vocabulary so a future change that breaks the criterion fails CI on a named test traceable back to the criterion. The CI gate runs every PR's tests and blocks merge on failure — the only enforcement that does not rely on agent compliance. The Implementer also captures a `test-catches-it.log` showing that intentionally breaking the underlying code makes the test fail (proves the test is real, not vacuous). For non-atomic direction, the Implementer additionally produces a `pre-mortem.md` (named failure modes the Implementer addressed) and a `counterfactual.md` (the runbook re-executed with the change reverted, failing as expected), and runs a separate adversarial pass via the **Bug Hunter** prompt before opening the PR.
+
 ## Roles
 
 - **Human.** Files direction at any granularity. Answers clarifying questions. Approves or redirects proposals. Reviews and merges PRs. Binding on all decisions.
 - **Thinking Partner.** AI agent. Surface is interactive Claude Code sessions in this repo, not GitHub. Sharpens half-formed ideas with the human — asks questions, surfaces tradeoffs, pushes back on premises — until the direction is sharp enough for the Implementer to act on. With explicit in-session human approval, files the resulting direction as a `maestro:direction` issue on the human's behalf. Produces no PRs, no comments, no labels — only dialogue plus (with approval) freshly filed direction issues.
 - **Implementer.** AI agent. Reads direction, leads with a proposal, asks observable-only clarifying questions, decomposes into atomic tasks, opens PRs, addresses review feedback, produces receipts.
-- **Reviewer.** AI agent. Critiques Implementer's PRs. Audits evidence against acceptance criteria. Advisory only.
-- **Orchestrator.** Not an AI agent. GitHub Actions, triggered by labels and PR events, dispatch Implementers and Reviewers. Deterministic.
+- **Reviewer.** AI agent. Critiques Implementer's PRs. Audits evidence against acceptance criteria *and* the criterion-↔-test-↔-evidence binding. Advisory only on judgement; the CI gate is the binding check.
+- **Bug Hunter.** AI agent (sub-role). Adversarial review pass invoked by the Implementer for non-atomic direction. Different cognitive lens from the Reviewer — only job is to find bugs in the diff (edge cases, missing error paths, race conditions, off-by-ones). Produces a `bug-hunter.log` the Implementer must address before opening the PR.
+- **Orchestrator.** Not an AI agent. GitHub Actions, triggered by labels and PR events, dispatch Implementers and Reviewers, and run the CI gate. Deterministic.
 
 ## Lifecycle
 
@@ -38,10 +41,16 @@ These principles govern every Implementer and Reviewer action. They were set by 
 1. **Direction.** Human (or AI agent) files an issue with the `maestro:direction` label. AI-originated direction *without* in-session human approval is additionally labeled `maestro:ai-proposed` and waits for an explicit positive comment from the human before proceeding.
 2. **Proposal.** Implementer posts a proposal as a comment on the issue, within ~5 minutes of the trigger.
 3. **Questions (optional).** If the proposal includes clarifying questions, the issue is labeled `maestro:awaiting-human`. The label is removed when the human responds.
-4. **Implementation.** Once the proposal is approved (a positive comment by the issue author such as "go" / "approved" / "lgtm"), the Implementer opens one PR per atomic change. PR descriptions use the *Observable change / Evidence* format. A 👍 reaction alone does not trigger the workflow — GitHub Actions does not fire on reactions.
-5. **Review.** Within ~5 minutes of a Maestro PR opening or updating, the Reviewer posts review comments. Advisory only.
-6. **Merge.** The human merges (or asks for changes).
-7. **Receipt.** When the last atomic PR for a direction closes its parent issue, the Implementer posts a closing receipt: observable change + evidence. The issue is labeled `maestro:done`. A summary row is appended to `.maestro/tasks.jsonl`.
+4. **Implementation.** Once the proposal is approved (a positive comment by the issue author such as "go" / "approved" / "lgtm"), the Implementer opens one PR per atomic change. Each PR ships, under `.maestro/evidence/<issue-or-pr>/`:
+   - `verify.sh` with one named assertion per acceptance criterion (the automated test).
+   - `runbook.md` walking through the observable change step by step (the demo a human can read or replay).
+   - `test-catches-it.log` showing the assertions fail when the underlying code is broken (proves the test is real).
+   - For non-atomic direction only: `pre-mortem.md`, `counterfactual.md`, and `bug-hunter.log` (results of the adversarial pass).
+   PR descriptions use the *Observable change / Evidence / Runbook / Test mapping* format. A 👍 reaction alone does not trigger the workflow — GitHub Actions does not fire on reactions.
+5. **CI gate.** A workflow runs `actionlint` on all workflows, validates `.maestro/tasks.jsonl` against the schema, and runs every `verify.sh` under `.maestro/evidence/*/` on every PR. Merge is blocked on failure. This is the only enforcement that does not rely on agent compliance — it is what prevents future regressions in landed criteria.
+6. **Review.** Within ~5 minutes of a Maestro PR opening or updating, the Reviewer posts review comments. The Reviewer's primary job is auditing the criterion-↔-test-↔-evidence binding. Advisory on judgement.
+7. **Merge.** The human merges (or asks for changes). The CI gate must be green.
+8. **Receipt.** When the last atomic PR for a direction closes its parent issue, the Implementer posts a closing receipt: observable change + evidence. The issue is labeled `maestro:done`. A summary row is appended to `.maestro/tasks.jsonl`.
 
 ## Edge-case defaults
 
@@ -53,15 +62,20 @@ These principles govern every Implementer and Reviewer action. They were set by 
 
 ## Evidence model
 
-Evidence demonstrates each acceptance criterion. Forms include:
+Evidence demonstrates each acceptance criterion. The required artifacts, under `.maestro/evidence/<issue-or-pr>/`:
 
-- A test name and its pass status, when the criterion is verifiable by tests.
-- Before/after measurements (latency, error rates, counts).
-- Reproducible commands the human can re-run.
-- Screenshots, recordings, or sample outputs, committed under `.maestro/evidence/<issue-number>/` for durability.
-- A demo issue/PR walk-through, for system-level changes.
+- **`verify.sh` — the automated test.** One named assertion per acceptance criterion. The assertion's printed label echoes the criterion's text so a future failure traces straight back. Run by CI on every PR; failure blocks merge.
+- **`runbook.md` — the demo.** Numbered steps a non-coder can follow: "do X, see Y." Each step cites the captured artifact (screenshot, log, command output) that proves it. The runbook is what the human reads to assess implementation against expectations *without running anything*.
+- **`test-catches-it.log` — the test-of-the-test.** Captured output showing that intentionally breaking the underlying code makes `verify.sh` fail. Without this, a "passing" test could be vacuous.
+- **Heavy artifacts** — screenshots, recordings, sample outputs, perf numbers — committed in the same directory and cited from the runbook.
 
-Pure refactors with no user-observable effect produce evidence of no regression: tests passing, golden flows still working.
+For non-atomic direction, three more artifacts are required:
+
+- **`pre-mortem.md`** — at least five named ways this could fail in production, and for each, what the Implementer did to address it.
+- **`counterfactual.md`** — the runbook re-executed with the change reverted, captured as failing (proves the change is doing the work and isn't a no-op).
+- **`bug-hunter.log`** — output of an adversarial review pass by the Bug Hunter sub-role. Findings either addressed in the diff or disclosed in the PR.
+
+Pure refactors with no user-observable effect produce a `runbook.md` of no regression and a `verify.sh` whose assertions cover the golden flows being preserved.
 
 Failed attempts produce a receipt explaining what was tried, what was observed, and why the work stopped.
 

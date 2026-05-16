@@ -1,0 +1,46 @@
+=== test-catches-it: proof that verify.sh assertions are not vacuous ===
+Captured at: 2026-05-16T03:20:49Z
+Commit: 12f2e5aaa307338834c9173822486157b207b48d
+
+Procedure:
+  1. Run verify.sh as-shipped. Expected: all assertions touching extant
+     code/doc pass; only the placeholder for this very log fails.
+  2. Break prompts/bug-hunter.md (move it aside).
+  3. Re-run verify.sh. Expected: Criterion 4 assertions both fail.
+  4. Restore prompts/bug-hunter.md.
+  5. Re-run verify.sh. Expected: Criterion 4 assertions both pass again.
+
+------------------------------------------------------------
+STEP 2: move prompts/bug-hunter.md aside
+------------------------------------------------------------
+ls: cannot access 'prompts/bug-hunter.md': No such file or directory
+
+------------------------------------------------------------
+STEP 3: re-run verify.sh (expect Criterion 4 to fail)
+------------------------------------------------------------
+## Criterion 4: prompts/bug-hunter.md exists
+[MISS] Criterion 4: prompts/bug-hunter.md missing
+[MISS] Criterion 4: bug-hunter.md is inconsistent with the role
+=== SUMMARY ===
+Passed: 34
+Failed: 2
+
+------------------------------------------------------------
+STEP 4: restore prompts/bug-hunter.md
+------------------------------------------------------------
+-rw-r--r-- 1 root root 3395 May 16 03:18 prompts/bug-hunter.md
+
+------------------------------------------------------------
+STEP 5: re-run verify.sh (expect Criterion 4 to pass again)
+------------------------------------------------------------
+## Criterion 4: prompts/bug-hunter.md exists
+[OK]   Criterion 4: prompts/bug-hunter.md exists
+[OK]   Criterion 4: bug-hunter.md writes to bug-hunter.log and is adversarial
+=== SUMMARY ===
+Passed: 36
+Failed: 0
+
+=== END ===
+Interpretation: when the underlying artifact is removed, the criterion
+assertions flip MISS; when restored, they flip OK. The assertions are
+exercising the criterion, not passing vacuously.

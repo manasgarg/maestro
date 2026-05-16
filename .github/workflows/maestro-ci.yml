@@ -1,0 +1,70 @@
+name: Maestro CI
+
+# The CI gate. Runs on every PR. Failure blocks merge. This is the only
+# enforcement that does not rely on agent compliance — it is what prevents
+# future regressions in landed criteria. Per DESIGN.md principle 8 and the
+# Lifecycle "CI gate" step.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install actionlint
+        run: |
+          set -euo pipefail
+          bash <(curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+          ./actionlint -version
+
+      - name: Lint workflows (actionlint)
+        run: ./actionlint -color .github/workflows/*.yml
+
+      - name: Install jsonschema
+        run: pip install --quiet 'jsonschema>=4.18,<5.0'
+
+      - name: Validate .maestro/tasks.jsonl against schema
+        run: python .maestro/scripts/validate_tasks_jsonl.py
+
+      - name: Validate evidence directories have required artifacts
+        run: python .maestro/scripts/validate_evidence.py
+
+      - name: Run all verify.sh scripts under .maestro/evidence/ (skipping LEGACY dirs)
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          failed=0
+          ran=0
+          skipped=0
+          for script in .maestro/evidence/*/verify.sh; do
+            dir="$(dirname "$script")"
+            if [ -f "$dir/LEGACY" ]; then
+              echo "  SKIP (LEGACY): $script"
+              skipped=$((skipped+1))
+              continue
+            fi
+            ran=$((ran+1))
+            echo "::group::$script"
+            if bash "$script"; then
+              echo "::endgroup::"
+              echo "  PASS: $script"
+            else
+              echo "::endgroup::"
+              echo "  FAIL: $script"
+              failed=$((failed+1))
+            fi
+          done
+          echo "Ran $ran verify.sh script(s); $failed failed; $skipped skipped (LEGACY)."
+          [ "$failed" -eq 0 ]

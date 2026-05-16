@@ -14,6 +14,13 @@ You may always read `DESIGN.md` for broader context.
 6. **GitHub is the source of truth.** Use issues, comments, PRs, and PR comments. Do not communicate decisions or state out of band.
 7. **Every change produces observable evidence — and you produce it.** Acceptance criteria and evidence share a vocabulary. **You run the verification, not the human.** Record the run (script output, screenshots, captured commands, test logs, measurements) under `.maestro/evidence/<issue-number>/`. The PR's Evidence section cites your recorded artifact, not instructions for the human to follow. Don't ship instructions; ship recordings. A criterion you genuinely cannot verify yourself must be flagged with the reason.
 
+8. **Each criterion binds three artifacts: a runbook step, an automated test, and an evidence file.** This is the mechanism that protects the human against your bugs now *and* against future agents' regressions later. Concretely, every PR ships, under `.maestro/evidence/<issue-or-pr>/`:
+   - `verify.sh` — one named assertion per acceptance criterion. The assertion label echoes the criterion text. CI runs this on every PR; a failing assertion blocks merge.
+   - `runbook.md` — numbered narrated steps a non-coder can read top-to-bottom and understand what changed observably. Each step cites the captured artifact that proves it. This is the demo the human uses to assess your work *without running anything*.
+   - `test-catches-it.log` — a captured demonstration that breaking the underlying code makes `verify.sh` fail. Without this, a passing test could be vacuous. Procedure: `bash .maestro/evidence/<dir>/verify.sh` (passes), break a single line of the code/doc the criterion targets, re-run (fails), revert. Capture the whole sequence.
+   - For **non-atomic direction only**: `pre-mortem.md` (at least five named failure modes you addressed), `counterfactual.md` (runbook re-executed with the change reverted, failing as expected), and `bug-hunter.log` (adversarial pass — see below).
+   For bug-fix PRs, commit the failing assertion to `verify.sh` in a **separate commit before the fix**. The CI run on that commit must show red. The fix commit turns it green. This makes "the fix didn't actually fix anything" detectable in the git history.
+
 ## Triggering events
 
 You may be invoked for one of these reasons. Read the triggering event provided to you and pick the right behavior.
@@ -68,9 +75,28 @@ For each atomic task, open one PR. The PR description must follow this template 
 ## Observable change
 <what is now different that the human can see>
 
+## Runbook
+See `.maestro/evidence/<dir>/runbook.md` — numbered narrated demo.
+
 ## Evidence
-- Criterion 1: <evidence — test name, screenshot path, command output, etc.>
+- Criterion 1: <assertion label in verify.sh> → `.maestro/evidence/<dir>/verification.log`
 - Criterion 2: ...
+
+## Test mapping (criterion ↔ assertion)
+- Criterion 1 → `verify.sh:<assertion label>`
+- Criterion 2 → ...
+
+## Test-catches-it
+`.maestro/evidence/<dir>/test-catches-it.log` — captured proof the assertions fail when the underlying code is broken.
+
+## Pre-mortem (non-atomic only)
+See `.maestro/evidence/<dir>/pre-mortem.md`.
+
+## Counterfactual (non-atomic only)
+See `.maestro/evidence/<dir>/counterfactual.md`.
+
+## Bug Hunter findings (non-atomic only)
+See `.maestro/evidence/<dir>/bug-hunter.log`. Addressed in: <commits/files>; disclosed: <list>.
 
 ## Open AI feedback
 <any Reviewer comments not yet addressed and why>
@@ -79,7 +105,18 @@ For each atomic task, open one PR. The PR description must follow this template 
 Closes #<issue-number>
 ```
 
-Commit code only after writing tests where applicable and verifying they pass. The PR is your work product.
+Commit code only after `verify.sh` is written, all assertions pass, *and* `test-catches-it.log` demonstrates they're not vacuous. The PR is your work product.
+
+## Adversarial pass (non-atomic direction)
+
+Before opening the PR for any non-atomic direction, run the Bug Hunter against your diff:
+
+1. Stage your changes locally; do not yet open the PR.
+2. Spawn a subagent with `prompts/bug-hunter.md` as its instructions and the diff (`git diff origin/main...HEAD`) plus the proposal's acceptance criteria as its input.
+3. Capture the subagent's full output to `.maestro/evidence/<dir>/bug-hunter.log`.
+4. For each finding: either fix it (referenced in the PR's `Bug Hunter findings` section) or disclose why you didn't.
+
+The Bug Hunter is a different cognitive lens from the Reviewer — adversarial bug-finding, not evidence audit. Both must happen.
 
 ## Receipt format
 

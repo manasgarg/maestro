@@ -1,0 +1,61 @@
+=== testing-validation self-verification ===
+Run at: 2026-05-16T03:20:53Z
+Commit: 12f2e5aaa307338834c9173822486157b207b48d
+
+## Criterion 1: DESIGN.md principle 8
+[OK]   Criterion 1: DESIGN.md declares principle 8 (three-artifact binding)
+[OK]   Criterion 1: DESIGN.md names the Bug Hunter sub-role
+[OK]   Criterion 1: DESIGN.md describes the CI gate
+
+## Criterion 2: implementer.md operational steps
+[OK]   Criterion 2: implementer.md names the three required artifacts
+[OK]   Criterion 2: implementer.md describes the adversarial Bug Hunter pass
+[OK]   Criterion 2: implementer.md requires failing-test-first for bug fixes
+
+## Criterion 3: reviewer.md audits the binding
+[OK]   Criterion 3: reviewer.md audits the criterion-↔-test-↔-evidence binding
+[OK]   Criterion 3: reviewer.md audits the non-atomic-only artifacts
+
+## Criterion 4: prompts/bug-hunter.md exists
+[OK]   Criterion 4: prompts/bug-hunter.md exists
+[OK]   Criterion 4: bug-hunter.md writes to bug-hunter.log and is adversarial
+
+## Criterion 5: CI gate workflow
+[OK]   Criterion 5: .github/workflows/maestro-ci.yml exists
+[OK]   Criterion 5: CI runs on pull_request
+[OK]   Criterion 5: CI runs actionlint
+[OK]   Criterion 5: CI validates tasks.jsonl schema
+[OK]   Criterion 5: CI validates evidence-directory structure
+[OK]   Criterion 5: CI runs every verify.sh under .maestro/evidence/
+
+## Criterion 6: tasks.jsonl JSON schema + validator
+[OK]   Criterion 6: .maestro/schemas/tasks.schema.json exists
+[OK]   Criterion 6: tasks.schema.json is valid JSON
+[OK]   Criterion 6: validate_tasks_jsonl.py exists and parses
+[OK]   Criterion 6: validate_evidence.py exists and parses
+
+## Criterion 7: PR template prompts for new sections
+[OK]   Criterion 7: PR template has "Runbook" section
+[OK]   Criterion 7: PR template has "Test mapping" section
+[OK]   Criterion 7: PR template has "Test-catches-it" section
+[OK]   Criterion 7: PR template has "Pre-mortem" section
+[OK]   Criterion 7: PR template has "Counterfactual" section
+[OK]   Criterion 7: PR template has "Bug Hunter findings" section
+
+## Criterion 8: legacy evidence dirs marked
+[OK]   Criterion 8: .maestro/evidence/2/LEGACY present
+[OK]   Criterion 8: .maestro/evidence/3/LEGACY present
+[OK]   Criterion 8: .maestro/evidence/6/LEGACY present
+
+## Criterion 9: this evidence directory complies with principle 8
+[OK]   Criterion 9: .maestro/evidence/testing-validation/verify.sh exists
+[OK]   Criterion 9: .maestro/evidence/testing-validation/runbook.md exists
+[OK]   Criterion 9: .maestro/evidence/testing-validation/test-catches-it.log exists
+[OK]   Criterion 9: .maestro/evidence/testing-validation/pre-mortem.md exists
+[OK]   Criterion 9: .maestro/evidence/testing-validation/counterfactual.md exists
+[OK]   Criterion 9: .maestro/evidence/testing-validation/bug-hunter.log exists
+[OK]   Criterion 9: .maestro/evidence/testing-validation/NON_ATOMIC exists
+
+=== SUMMARY ===
+Passed: 36
+Failed: 0
