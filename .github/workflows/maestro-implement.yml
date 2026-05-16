@@ -1,5 +1,17 @@
 name: Maestro Implementer
 
+# This workflow is both Maestro's own dispatcher (via the `issues`,
+# `issue_comment`, and `pull_request` triggers below) and a reusable
+# workflow that satellite repos call (via `workflow_call`) to run the
+# same Implementer loop against their own GitHub state at a pinned
+# Maestro version.
+#
+# When invoked via workflow_call, the caller (a satellite shim) must pass
+# `maestro_ref` — the Maestro git ref to load prompts from — and inherit
+# the `CLAUDE_CODE_OAUTH_TOKEN` secret. When invoked directly on this
+# repo, `inputs.maestro_ref` is empty and prompts are read from the
+# working tree.
+
 on:
   issues:
     types: [labeled]
@@ -7,6 +19,16 @@ on:
     types: [created]
   pull_request:
     types: [closed]
+  workflow_call:
+    inputs:
+      maestro_ref:
+        description: "Git ref of the Maestro repo to load prompts from. Required when a satellite calls this workflow; ignored when Maestro invokes itself."
+        required: true
+        type: string
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN:
+        description: "Claude Code OAuth token for the calling repo. Use `secrets: inherit` in the satellite shim."
+        required: true
 
 permissions:
   contents: write
@@ -19,11 +41,21 @@ jobs:
     # - a maestro:direction label is added to an issue by a trusted actor
     # - a comment by a trusted actor is added to a maestro:direction issue
     # - a PR opened by a trusted actor that closes a maestro:direction issue is merged
+    # - a satellite repo calls this workflow via workflow_call (matched by
+    #   the `inputs.maestro_ref != ''` branch). The satellite shim is the
+    #   satellite owner's code, secrets are inherited explicitly, and the
+    #   satellite is responsible for gating its own caller event (typically
+    #   with the same author_association check on whatever trigger fires
+    #   the shim). Without this branch, the three github.event_name checks
+    #   below silently skip every satellite caller event that isn't
+    #   issues/issue_comment/pull_request (in a reusable workflow,
+    #   `github.event_name` is the caller's event, not 'workflow_call').
     #
     # "Trusted actor" = OWNER / MEMBER / COLLABORATOR. On public repos, this
     # prevents random commenters from triggering Maestro workflows that have
     # the subscription OAuth token in their environment.
     if: |
+      inputs.maestro_ref != '' ||
       (github.event_name == 'issues' && github.event.label.name == 'maestro:direction' && contains(fromJson('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.issue.author_association)) ||
       (github.event_name == 'issue_comment' && contains(github.event.issue.labels.*.name, 'maestro:direction') && contains(fromJson('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association)) ||
       (github.event_name == 'pull_request' && github.event.pull_request.merged == true && contains(fromJson('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.pull_request.author_association))
@@ -32,6 +64,27 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      # Satellite-mode only: also check out Maestro at the pinned ref so we
+      # can read its prompts (and DESIGN.md) from .maestro-src/. When
+      # Maestro invokes itself, inputs.maestro_ref is empty and we read
+      # prompts from the working tree.
+      - name: Check out Maestro prompts (when invoked from a satellite)
+        if: ${{ inputs.maestro_ref != '' }}
+        uses: actions/checkout@v4
+        with:
+          repository: manasgarg/maestro
+          ref: ${{ inputs.maestro_ref }}
+          path: .maestro-src
+
+      - name: Resolve prompts source
+        id: prompts
+        run: |
+          if [ -n "${{ inputs.maestro_ref }}" ]; then
+            echo "dir=.maestro-src" >> "$GITHUB_OUTPUT"
+          else
+            echo "dir=." >> "$GITHUB_OUTPUT"
+          fi
 
       # The action's documented inputs are prompt / prompt_file / claude_args /
       # settings / claude_code_oauth_token / anthropic_api_key (plus cloud and
@@ -47,10 +100,11 @@ jobs:
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_MERGED: ${{ github.event.pull_request.merged }}
           REPO: ${{ github.repository }}
+          PROMPTS_DIR: ${{ steps.prompts.outputs.dir }}
         run: |
           PROMPT_PATH="${RUNNER_TEMP}/maestro_prompt.md"
           {
-            cat prompts/implementer.md
+            cat "$PROMPTS_DIR/prompts/implementer.md"
             echo
             echo "---"
             echo
@@ -68,6 +122,20 @@ jobs:
             fi
             echo
             echo "Use the GitHub MCP tools to read the full issue body, its comments and reactions, related PRs, and any existing proposal. Then act according to the **Triggering events** section of your instructions above."
+            if [ "$PROMPTS_DIR" != "." ]; then
+              echo
+              echo "## Path redirection (satellite mode — binding)"
+              echo
+              echo "This invocation is running against a **satellite repo**, not Maestro itself. The Maestro spec lives at \`$PROMPTS_DIR/\` — every relative path inside Maestro's own tree referenced by the prompt above resolves there, **not** in the current working directory. Specifically:"
+              echo
+              echo "- \`DESIGN.md\` → \`$PROMPTS_DIR/DESIGN.md\`"
+              echo "- \`prompts/adversarial-reviewer.md\` → \`$PROMPTS_DIR/prompts/adversarial-reviewer.md\`"
+              echo "- \`prompts/implementer.md\` (this file) → \`$PROMPTS_DIR/prompts/implementer.md\`"
+              echo "- \`tools/build_learnings_index.py\` → \`$PROMPTS_DIR/tools/build_learnings_index.py\`"
+              echo "- any other path under \`prompts/\`, \`tools/\`, or the Maestro repo root → \`$PROMPTS_DIR/<that-path>\`"
+              echo
+              echo "Your working directory is the **satellite repo** — that is what your edits, commits, and PRs target. The \`$PROMPTS_DIR/\` checkout is read-only context."
+            fi
           } > "$PROMPT_PATH"
           echo "PROMPT_PATH=$PROMPT_PATH" >> "$GITHUB_ENV"
 
