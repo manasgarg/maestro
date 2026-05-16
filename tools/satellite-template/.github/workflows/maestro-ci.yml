@@ -1,0 +1,20 @@
+name: Maestro CI
+
+# Satellite shim. The Maestro CI workflow is self-contained (just runs
+# tools/run_tests.sh in the calling repo) so this caller doesn't need
+# a maestro_ref input — it forwards triggers at the pinned version
+# for consistency with the other shims and so version bumps update
+# all four in one PR.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    uses: manasgarg/maestro/.github/workflows/maestro-ci.yml@__MAESTRO_VERSION__
