@@ -1,0 +1,89 @@
+name: Maestro Learn (scheduled)
+
+# Synthesize learnings from issues closed and PRs merged in the last window.
+# Runs daily; also supports manual dispatch from the Actions tab.
+
+on:
+  schedule:
+    - cron: '0 9 * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  issues: read
+  pull-requests: write
+
+jobs:
+  learn:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute synthesis window
+        id: window
+        run: |
+          STAMP_FILE=".maestro/learnings/.last-synthesized-at"
+          if [ -s "$STAMP_FILE" ]; then
+            SINCE=$(head -n 1 "$STAMP_FILE" | tr -d '[:space:]')
+          else
+            SINCE=$(date -u -d "1 day ago" +"%Y-%m-%dT%H:%M:%SZ")
+          fi
+          NOW=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          TODAY=$(date -u +"%Y-%m-%d")
+          BRANCH="learnings/$(date -u +%Y-%m-%d-%H%M%S)"
+          {
+            echo "since=$SINCE"
+            echo "now=$NOW"
+            echo "today=$TODAY"
+            echo "branch=$BRANCH"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Compose Synthesizer prompt
+        env:
+          SINCE: ${{ steps.window.outputs.since }}
+          NOW: ${{ steps.window.outputs.now }}
+          TODAY: ${{ steps.window.outputs.today }}
+          BRANCH: ${{ steps.window.outputs.branch }}
+          REPO: ${{ github.repository }}
+        run: |
+          PROMPT_PATH="${RUNNER_TEMP}/synthesizer_prompt.md"
+          {
+            cat prompts/synthesizer.md
+            echo
+            echo "---"
+            echo
+            echo "## This invocation"
+            echo "- mode: A (scheduled batch)"
+            echo "- repo: \`$REPO\`"
+            echo "- window: from \`$SINCE\` to \`$NOW\`"
+            echo "- target branch if you open a PR: \`$BRANCH\`"
+            echo "- date label for PR title: \`$TODAY\`"
+            echo
+            echo "Use the GitHub MCP tools to list issues closed and PRs merged in this window, and read their full conversations (issue bodies, all comments, PR descriptions, PR review comments). Then synthesize per the rules above."
+            echo
+            echo "Before writing any new learning, list the contents of \`.maestro/learnings/\` and read every file whose tag(s) overlap your candidate. Skip duplicates; supersede refinements."
+            echo
+            echo "After deciding:"
+            echo
+            echo "**If you wrote one or more new learning files:**"
+            echo "1. Update \`.maestro/learnings/.last-synthesized-at\` to \`$NOW\`."
+            echo "2. Run \`python3 tools/build_learnings_index.py\` to regenerate \`INDEX.md\`."
+            echo "3. Create branch \`$BRANCH\`, commit (including the timestamp file and the regenerated INDEX), push, and open a PR titled \`learnings: $TODAY\`. PR body lists each new learning with its source URL."
+            echo
+            echo "**If you skipped:**"
+            echo "1. Update \`.maestro/learnings/.last-synthesized-at\` to \`$NOW\` so the next run does not re-process this window."
+            echo "2. Commit only that timestamp file directly to \`main\` with message: \`learnings: skipped $TODAY — <one-line reason>\`."
+            echo "3. Print \`SKIP: <reason>\` to stdout so the workflow log captures it."
+          } > "$PROMPT_PATH"
+          echo "PROMPT_PATH=$PROMPT_PATH" >> "$GITHUB_ENV"
+
+      - name: Run Synthesizer
+        uses: anthropics/claude-code-base-action@beta
+        env:
+          GITHUB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt_file: ${{ env.PROMPT_PATH }}
+          claude_args: "--permission-mode bypassPermissions"

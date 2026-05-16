@@ -1,0 +1,70 @@
+Maestro issue #7 — self-verification
+run: 2026-05-16T02:58:03Z
+cwd: /home/user/maestro
+
+=== Files present ===
+PASS  prompts/synthesizer.md exists
+PASS  .maestro/learnings/ exists
+PASS  INDEX.md exists
+PASS  README.md exists
+PASS  .last-synthesized-at exists
+PASS  build_learnings_index.py exists
+PASS  CLAUDE.md exists
+PASS  maestro-learn.yml workflow exists
+PASS  .claude/commands/learn.md exists
+
+=== Synthesizer prompt structure ===
+PASS  has 'What IS a learning' section
+PASS  has 'What is NOT a learning' calibration
+PASS  has 'Supersedes mechanics' section
+PASS  describes scheduled batch mode (A)
+PASS  describes on-demand mode (B)
+PASS  default-to-skip is binding principle
+
+=== Seed learnings: frontmatter valid ===
+PASS  at least 3 seed learnings
+PASS  frontmatter valid: maestro-evidence-as-rerunnable-script.md
+PASS  frontmatter valid: claude-code-base-action-input-shape.md
+PASS  frontmatter valid: github-reactions-dont-trigger-workflows.md
+
+=== Index generator: regenerate + idempotency ===
+PASS  second run produces identical INDEX.md (idempotent)
+PASS  INDEX.md lists at least 3 seed-learning links
+
+=== Supersedes demo (criterion 2 from proposal) ===
+PASS  after-supersedes INDEX hides v1 from main groupings
+PASS  after-supersedes INDEX shows v2 as active
+PASS  after-supersedes INDEX has 'Superseded' section
+PASS  after-supersedes INDEX links v1 → v2 in Superseded section
+
+=== CLAUDE.md loadback wiring ===
+PASS  CLAUDE.md instructs sessions to read INDEX.md
+PASS  CLAUDE.md references /learn for new findings
+
+=== Scheduled workflow shape ===
+PASS  workflow uses cron schedule
+PASS  workflow supports manual dispatch
+PASS  workflow uses claude-code-base-action
+PASS  workflow auths via OAuth token (not API key)
+PASS  workflow loads synthesizer prompt
+PASS  workflow computes window from .last-synthesized-at
+PASS  workflow YAML parses
+
+=== /learn slash command shape ===
+PASS  slash command has frontmatter description
+PASS  slash command references synthesizer prompt
+PASS  slash command instructs commit directly (no PR)
+PASS  slash command emphasizes default-to-skip
+
+=== Loadback (criterion 3): fresh session reads INDEX and cites a learning ===
+PASS  fresh-session loadback cites a real learning filename
+
+=== Skip-path demo (criterion 4): synthesizer correctly produces no learning ===
+PASS  synthesizer skipped on non-learning input
+
+=== Summary ===
+
+Passed: 40
+Failed: 0
+
+ALL GREEN

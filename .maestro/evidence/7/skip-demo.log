@@ -1,0 +1,5 @@
+===== skip-path scenario =====
+Input: a one-off typo fix on README.md ('teh' -> 'the'). No conversation, no decisions, no surfacing of any platform behavior.
+Expected: synthesizer outputs SKIP with a reason like 'one-off bug fix, nothing reusable'.
+===== synthesizer reply =====
+SKIP: one-off typo fix contains no reusable insight.
