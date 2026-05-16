@@ -96,8 +96,12 @@ Before opening the PR, run a separate adversarial review whose only job is to fi
 
 How to run it:
 
-1. Stage all the changes you intend to ship.
-2. Spawn a subagent (use the `Agent` / `Task` tool with `subagent_type: general-purpose` or the equivalent) and pass it the contents of `prompts/adversarial-reviewer.md` plus a `git diff` of your changes. Instruct it to output its findings as a markdown report.
+1. Stage all the changes you intend to ship (`git add -A`) and capture the staged diff to a file:
+   ```
+   git diff --cached > /tmp/pr-diff.patch
+   ```
+   Note: plain `git diff` (no flags) shows only *unstaged* edits — after `git add -A` it is empty. Always use `--cached` here, or the adversarial pass will be invoked on an empty diff and the new requirement becomes vacuous.
+2. Spawn a subagent (use the `Agent` / `Task` tool with `subagent_type: general-purpose` or the equivalent) and pass it the contents of `prompts/adversarial-reviewer.md` plus the path to the captured patch (`/tmp/pr-diff.patch`). Instruct it to output its findings as a markdown report.
 3. Save its output verbatim to `.maestro/evidence/<issue-number>/adversarial-review.md`.
 4. Address the findings: either fix (and link the fix commit in the PR description's Adversarial-pass section) or explain why you're not fixing (in the same section). Do not delete or edit the captured review.
 

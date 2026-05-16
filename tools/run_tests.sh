@@ -45,8 +45,9 @@ if [ "${#non_exec[@]}" -gt 0 ]; then
 fi
 
 if [ "${#tests[@]}" -eq 0 ]; then
-  echo "No tests found under $tests_dir/ (looking for executable files named test_*)."
-  exit 0
+  echo "ERROR: $tests_dir/ exists but contains no test_* files." >&2
+  echo "A repo that has adopted Maestro's test contract must keep at least one acceptance-criterion test under $tests_dir/. Refusing to report green on an empty test set." >&2
+  exit 1
 fi
 
 pass=0

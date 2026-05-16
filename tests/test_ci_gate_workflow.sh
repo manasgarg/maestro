@@ -63,3 +63,15 @@ chmod +x "$pos/tests/test_a.sh" "$pos/tests/test_b.sh"
 if ! (cd "$pos" && ./tools/run_tests.sh) >/dev/null 2>&1; then
   fail "Test runner exited non-zero when every test was passing."
 fi
+
+# --- Empty-tests control: tests/ exists but contains no test_* files
+# --- must hard-fail. A PR that deletes every test would otherwise sail
+# --- through CI green even though no acceptance-criterion test ran.
+empty="$tmproot/empty"
+mkdir -p "$empty/tests" "$empty/tools"
+cp "$repo_root/tools/run_tests.sh" "$empty/tools/run_tests.sh"
+chmod +x "$empty/tools/run_tests.sh"
+
+if (cd "$empty" && ./tools/run_tests.sh) >/dev/null 2>&1; then
+  fail "Test runner exited 0 when tests/ existed but contained no test_* files; a 'delete all tests' regression would not be caught."
+fi
