@@ -27,13 +27,15 @@ These principles govern every Implementer and Reviewer action. They were set by 
 ## Roles
 
 - **Human.** Files direction at any granularity. Answers clarifying questions. Approves or redirects proposals. Reviews and merges PRs. Binding on all decisions.
+- **Thinking Partner.** AI agent. Surface is interactive Claude Code sessions in this repo, not GitHub. Sharpens half-formed ideas with the human — asks questions, surfaces tradeoffs, pushes back on premises — until the direction is sharp enough for the Implementer to act on. With explicit in-session human approval, files the resulting direction as a `maestro:direction` issue on the human's behalf. Produces no PRs, no comments, no labels — only dialogue plus (with approval) freshly filed direction issues.
 - **Implementer.** AI agent. Reads direction, leads with a proposal, asks observable-only clarifying questions, decomposes into atomic tasks, opens PRs, addresses review feedback, produces receipts.
 - **Reviewer.** AI agent. Critiques Implementer's PRs. Audits evidence against acceptance criteria. Advisory only.
 - **Orchestrator.** Not an AI agent. GitHub Actions, triggered by labels and PR events, dispatch Implementers and Reviewers. Deterministic.
 
 ## Lifecycle
 
-1. **Direction.** Human (or AI agent) files an issue with the `maestro:direction` label. AI-originated direction is additionally labeled `maestro:ai-proposed` and waits for an explicit positive comment from the human before proceeding.
+0. **Shaping (optional).** The human runs `/think` in a Claude Code session to load the Thinking Partner. They talk through a half-formed idea; the Thinking Partner asks sharpening questions, surfaces tradeoffs, and pushes back on premises until the direction is sharp enough to act on. When the human gives explicit in-session approval ("go", "file it", or similar), the Thinking Partner files the result as a `maestro:direction` issue. The in-session "go" *is* the human approval, so the issue is labeled `maestro:direction` only — *not* `maestro:ai-proposed`. The `maestro:ai-proposed` label remains reserved for direction an AI agent originates without human prompting. The Thinking Partner notes in the issue body that it was filed via a Thinking Partner session with the human's approval.
+1. **Direction.** Human (or AI agent) files an issue with the `maestro:direction` label. AI-originated direction *without* in-session human approval is additionally labeled `maestro:ai-proposed` and waits for an explicit positive comment from the human before proceeding.
 2. **Proposal.** Implementer posts a proposal as a comment on the issue, within ~5 minutes of the trigger.
 3. **Questions (optional).** If the proposal includes clarifying questions, the issue is labeled `maestro:awaiting-human`. The label is removed when the human responds.
 4. **Implementation.** Once the proposal is approved (a positive comment by the issue author such as "go" / "approved" / "lgtm"), the Implementer opens one PR per atomic change. PR descriptions use the *Observable change / Evidence* format. A 👍 reaction alone does not trigger the workflow — GitHub Actions does not fire on reactions.
@@ -44,7 +46,7 @@ These principles govern every Implementer and Reviewer action. They were set by 
 ## Edge-case defaults
 
 - **Ambiguous atomic direction.** If a small direction has multiple plausible implementations with observably different results, the Implementer asks. If the difference would not be observable, the Implementer picks and discloses.
-- **AI-originated direction.** Labeled `maestro:ai-proposed`. Never executes without one human acknowledgment.
+- **AI-originated direction.** Direction an AI agent originates *without* in-session human approval is labeled `maestro:ai-proposed` and never executes without one human acknowledgment. Direction the Thinking Partner files *with* explicit in-session approval is `maestro:direction` only — the in-session "go" is the acknowledgment.
 - **Proposal rejection loop.** After two consecutive human-rejected revisions, the Implementer's next response must be a clarifying question.
 - **Reviewer disagreement.** Surfaced to the human only when both views are blocking-severity. Otherwise the Implementer picks and proceeds.
 - **Multi-PR direction.** Closes when the last sub-PR merges. The human can reopen with new direction at any time.
