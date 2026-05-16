@@ -1,0 +1,34 @@
+# Anti-no-op revert evidence for PR 1 / issue #14
+#
+# To prove the workflow changes are doing real work, the four workflow
+# files were temporarily reverted to HEAD via:
+#
+#   git stash --keep-index -u -- \
+#     .github/workflows/maestro-implement.yml \
+#     .github/workflows/maestro-review.yml \
+#     .github/workflows/maestro-ci.yml \
+#     .github/workflows/maestro-learn.yml
+#
+# The new test (tests/test_reusable_workflows.sh) remained in the working
+# tree. With the workflows reverted, the test suite reports the suite-level
+# failure followed by the direct invocation that surfaces the specific
+# missing contract (no workflow_call trigger). After capturing this, the
+# changes were restored via `git stash pop` and the suite is green again
+# (Summary: 8 passed, 0 failed) — see verification.log.
+
+PASS tests/test_adversarial_pass_convention.sh
+PASS tests/test_bug_fix_test_first_convention.sh
+PASS tests/test_ci_gate_workflow.sh
+PASS tests/test_demo_convention.sh
+PASS tests/test_pre_mortem_convention.sh
+FAIL tests/test_reusable_workflows.sh
+PASS tests/test_revert_evidence_convention.sh
+PASS tests/test_test_per_criterion_convention.sh
+
+Summary: 7 passed, 1 failed (of 8 tests).
+
+Failing tests (re-run individually for details):
+  tests/test_reusable_workflows.sh
+
+# Direct invocation of the failing test, showing the specific contract gap:
+FAIL: maestro-implement.yml does not declare a workflow_call trigger; satellite shims cannot call it.

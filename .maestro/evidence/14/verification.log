@@ -1,0 +1,31 @@
+
+=== 1. workflow_call triggers (all four) ===
+  OK  maestro-implement.yml declares workflow_call
+  OK  maestro-review.yml declares workflow_call
+  OK  maestro-ci.yml declares workflow_call
+  OK  maestro-learn.yml declares workflow_call
+
+=== 2. agent-running workflows: maestro_ref input + OAuth secret ===
+  OK  maestro-implement.yml
+  OK  maestro-review.yml
+  OK  maestro-learn.yml
+
+=== 3. satellite-mode prompt sourcing (conditional checkout) ===
+  OK  maestro-implement.yml checks out Maestro at inputs.maestro_ref into .maestro-src/
+  OK  maestro-review.yml checks out Maestro at inputs.maestro_ref into .maestro-src/
+  OK  maestro-learn.yml checks out Maestro at inputs.maestro_ref into .maestro-src/
+
+=== 4. structural test passes ===
+  OK  tests/test_reusable_workflows.sh
+
+=== 5. full test suite ===
+PASS tests/test_adversarial_pass_convention.sh
+PASS tests/test_bug_fix_test_first_convention.sh
+PASS tests/test_ci_gate_workflow.sh
+PASS tests/test_demo_convention.sh
+PASS tests/test_pre_mortem_convention.sh
+PASS tests/test_reusable_workflows.sh
+PASS tests/test_revert_evidence_convention.sh
+PASS tests/test_test_per_criterion_convention.sh
+
+Summary: 8 passed, 0 failed (of 8 tests).

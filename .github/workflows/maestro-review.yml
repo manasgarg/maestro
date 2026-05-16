@@ -1,8 +1,22 @@
 name: Maestro Reviewer
 
+# Reusable: when called from a satellite shim via workflow_call, prompts
+# are loaded from the pinned Maestro ref. When fired directly on this
+# repo, prompts come from the working tree.
+
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+  workflow_call:
+    inputs:
+      maestro_ref:
+        description: "Git ref of the Maestro repo to load prompts from. Required when a satellite calls this workflow; ignored when Maestro invokes itself."
+        required: true
+        type: string
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN:
+        description: "Claude Code OAuth token for the calling repo. Use `secrets: inherit` in the satellite shim."
+        required: true
 
 permissions:
   contents: read
@@ -15,6 +29,17 @@ jobs:
     # consumes your subscription credits. (Note: GitHub already does not pass
     # secrets to workflows triggered by fork PRs, but this gate makes the
     # intent explicit and covers any future trigger expansion.)
+    #
+    # SATELLITE CONTRACT: Satellite shims that call this workflow MUST
+    # trigger on `pull_request` events (`opened`/`synchronize`/`reopened`).
+    # Calls from any other caller event (e.g. `workflow_dispatch`) will
+    # silently no-op, which is by design: the reviewer's only job is to
+    # review a specific PR, and `github.event.pull_request.*` is empty on
+    # non-PR events — there would be no PR to review and no useful work to
+    # do. Do not add an `inputs.maestro_ref != '' ||` OR-branch to admit
+    # non-PR callers without also adding an explicit `pr_number` input;
+    # otherwise the workflow will burn credits with no target. (Flagged by
+    # ChatGPT Codex on PR #15 — see .maestro/evidence/14/adversarial-pass-resolution.md.)
     if: |
       contains(fromJson('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.pull_request.author_association)
     runs-on: ubuntu-latest
@@ -23,16 +48,34 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Check out Maestro prompts (when invoked from a satellite)
+        if: ${{ inputs.maestro_ref != '' }}
+        uses: actions/checkout@v4
+        with:
+          repository: manasgarg/maestro
+          ref: ${{ inputs.maestro_ref }}
+          path: .maestro-src
+
+      - name: Resolve prompts source
+        id: prompts
+        run: |
+          if [ -n "${{ inputs.maestro_ref }}" ]; then
+            echo "dir=.maestro-src" >> "$GITHUB_OUTPUT"
+          else
+            echo "dir=." >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Compose Reviewer prompt
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_AUTHOR: ${{ github.event.pull_request.user.login }}
           REPO: ${{ github.repository }}
+          PROMPTS_DIR: ${{ steps.prompts.outputs.dir }}
         run: |
           PROMPT_PATH="${RUNNER_TEMP}/maestro_prompt.md"
           {
-            cat prompts/reviewer.md
+            cat "$PROMPTS_DIR/prompts/reviewer.md"
             echo
             echo "---"
             echo
@@ -42,6 +85,18 @@ jobs:
             echo "- author: $PR_AUTHOR"
             echo
             echo "Read the PR description (it links the direction issue via \"Closes #N\"). Read the direction issue and its proposal to learn the acceptance criteria. Then audit the PR diff and evidence against those criteria, and post your review per the instructions above."
+            if [ "$PROMPTS_DIR" != "." ]; then
+              echo
+              echo "## Path redirection (satellite mode — binding)"
+              echo
+              echo "This invocation is running against a **satellite repo**, not Maestro itself. The Maestro spec lives at \`$PROMPTS_DIR/\` — every relative path inside Maestro's own tree referenced by the prompt above resolves there, **not** in the current working directory. Specifically:"
+              echo
+              echo "- \`DESIGN.md\` → \`$PROMPTS_DIR/DESIGN.md\`"
+              echo "- \`prompts/reviewer.md\` (this file) → \`$PROMPTS_DIR/prompts/reviewer.md\`"
+              echo "- any other path under \`prompts/\`, \`tools/\`, or the Maestro repo root → \`$PROMPTS_DIR/<that-path>\`"
+              echo
+              echo "Your working directory is the **satellite repo** — that is what your review reads and comments on. The \`$PROMPTS_DIR/\` checkout is read-only context."
+            fi
           } > "$PROMPT_PATH"
           echo "PROMPT_PATH=$PROMPT_PATH" >> "$GITHUB_ENV"
 
