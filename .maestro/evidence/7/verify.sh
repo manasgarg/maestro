@@ -50,6 +50,7 @@ check "build_learnings_index.py exists" test -f tools/build_learnings_index.py
 check "CLAUDE.md exists"              test -f CLAUDE.md
 check "maestro-learn.yml workflow exists" test -f .github/workflows/maestro-learn.yml
 check ".claude/commands/learn.md exists"  test -f .claude/commands/learn.md
+check ".claude/commands/learn-recent.md exists (cross-surface on-demand)" test -f .claude/commands/learn-recent.md
 
 # ---------------------------------------------------------------------------
 section "Synthesizer prompt structure"
@@ -59,7 +60,19 @@ check "has 'What is NOT a learning' calibration" grep -q "## What is NOT a learn
 check "has 'Supersedes mechanics' section" grep -q "## Supersedes mechanics" prompts/synthesizer.md
 check "describes scheduled batch mode (A)" grep -q "Mode A: scheduled batch" prompts/synthesizer.md
 check "describes on-demand mode (B)"       grep -q "Mode B: on-demand from a session" prompts/synthesizer.md
+check "describes cross-surface mode (D)"   grep -q "Mode D: on-demand cross-surface" prompts/synthesizer.md
 check "default-to-skip is binding principle" grep -q "default is to skip" prompts/synthesizer.md
+check "has Security section (P1 fix)"      grep -q "^## Security " prompts/synthesizer.md
+check "Security: trusted-actor filter"     grep -qi "author_association" prompts/synthesizer.md
+check "Security: untrusted-content boundary marker" grep -q "untrusted_content" prompts/synthesizer.md
+if grep -q "Step 1 — advance the timestamp on" prompts/synthesizer.md && \
+   grep -q "never re-processes the same window" prompts/synthesizer.md; then
+  say "PASS  Mode A: split-commit protocol (P2 fix)"
+  PASS=$((PASS+1))
+else
+  say "FAIL  Mode A: split-commit protocol (P2 fix)"
+  FAIL=$((FAIL+1))
+fi
 
 # ---------------------------------------------------------------------------
 section "Seed learnings: frontmatter valid"
@@ -163,12 +176,28 @@ section "Scheduled workflow shape"
 # ---------------------------------------------------------------------------
 check "workflow uses cron schedule"           grep -q "schedule:" .github/workflows/maestro-learn.yml
 check "workflow supports manual dispatch"     grep -q "workflow_dispatch" .github/workflows/maestro-learn.yml
+check "workflow accepts 'since' dispatch input (on-demand custom window)" \
+  grep -qE "^\s+since:" .github/workflows/maestro-learn.yml
+check "workflow accepts 'until' dispatch input" \
+  grep -qE "^\s+until:" .github/workflows/maestro-learn.yml
 check "workflow uses claude-code-base-action" grep -q "anthropics/claude-code-base-action" .github/workflows/maestro-learn.yml
-check "workflow auths via OAuth token (not API key)" \
-  bash -c '! grep -q "anthropic_api_key" .github/workflows/maestro-learn.yml && grep -q "CLAUDE_CODE_OAUTH_TOKEN" .github/workflows/maestro-learn.yml'
+if grep -q "anthropic_api_key" .github/workflows/maestro-learn.yml; then
+  say "FAIL  workflow auths via OAuth token (not API key)"
+  FAIL=$((FAIL+1))
+elif grep -q "CLAUDE_CODE_OAUTH_TOKEN" .github/workflows/maestro-learn.yml; then
+  say "PASS  workflow auths via OAuth token (not API key)"
+  PASS=$((PASS+1))
+else
+  say "FAIL  workflow auths via OAuth token (not API key)"
+  FAIL=$((FAIL+1))
+fi
 check "workflow loads synthesizer prompt"     grep -q "prompts/synthesizer.md" .github/workflows/maestro-learn.yml
 check "workflow computes window from .last-synthesized-at" \
   grep -q "last-synthesized-at" .github/workflows/maestro-learn.yml
+check "workflow has advance_timestamp toggle (P2 fix)" \
+  grep -q "advance" .github/workflows/maestro-learn.yml
+check "workflow enforces trusted-actor filter in prompt (P1 fix)" \
+  grep -q "author_association" .github/workflows/maestro-learn.yml
 python3 -c "import yaml,sys; yaml.safe_load(open('.github/workflows/maestro-learn.yml'))" >/dev/null 2>&1
 if [ $? -eq 0 ]; then
   say "PASS  workflow YAML parses"
@@ -181,14 +210,24 @@ fi
 # ---------------------------------------------------------------------------
 section "/learn slash command shape"
 # ---------------------------------------------------------------------------
-check "slash command has frontmatter description" \
+check "/learn has frontmatter description" \
   bash -c "head -3 .claude/commands/learn.md | grep -q '^description:'"
-check "slash command references synthesizer prompt" \
+check "/learn references synthesizer prompt" \
   grep -q "prompts/synthesizer.md" .claude/commands/learn.md
-check "slash command instructs commit directly (no PR)" \
+check "/learn instructs commit directly (no PR)" \
   grep -q "Do not open a PR" .claude/commands/learn.md
-check "slash command emphasizes default-to-skip" \
+check "/learn emphasizes default-to-skip" \
   grep -qi "skip" .claude/commands/learn.md
+check "/learn-recent has frontmatter description" \
+  bash -c "head -3 .claude/commands/learn-recent.md | grep -q '^description:'"
+check "/learn-recent references synthesizer prompt" \
+  grep -q "prompts/synthesizer.md" .claude/commands/learn-recent.md
+check "/learn-recent invokes Mode D" \
+  grep -q "Mode D\|Mode:.*D" .claude/commands/learn-recent.md
+check "/learn-recent scans all three surfaces" \
+  bash -c "grep -qi 'session' .claude/commands/learn-recent.md && grep -qi 'issues closed' .claude/commands/learn-recent.md && grep -qi 'PRs merged' .claude/commands/learn-recent.md"
+check "/learn-recent applies trusted-actor filter" \
+  grep -q "trusted-actor filter\|author_association" .claude/commands/learn-recent.md
 
 # ---------------------------------------------------------------------------
 section "Loadback (criterion 3): fresh session reads INDEX and cites a learning"
